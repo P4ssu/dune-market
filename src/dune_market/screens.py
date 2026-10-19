@@ -29,13 +29,15 @@ def classify(words: list[Word]) -> Screen:
 
 
 # The Exchange tab bar has a Q and an E key box (gold squares) at fixed spots; the inventory bar and
-# every other screen have them elsewhere or not at all. Fractions of the picture (left, top, right, bottom).
-_KEY_BOXES = ((0.368, 0.020, 0.402, 0.074), (0.598, 0.020, 0.632, 0.074))
-_MIN_GOLD = 0.12  # measured: Exchange 0.18-0.19, inventory 0.00-0.07, other screens 0.00
+# every other screen have them elsewhere or not at all. The chest/storage bar has the same boxes about
+# 0.012 of the width closer to the middle, so these are narrow strips that only the Exchange's boxes fill.
+# Fractions of the picture (left, top, right, bottom).
+_KEY_BOXES = ((0.376, 0.020, 0.392, 0.074), (0.608, 0.020, 0.624, 0.074))
+_MIN_GOLD = 0.25  # measured: Exchange 0.38-0.40, chest 0.09-0.12, inventory 0.00-0.07, other screens 0.00
 
 
 def bar_scores(frame: Image.Image) -> tuple[float, float]:
-    """How gold the Q and E key boxes are (0-1); the Exchange bar scores about 0.18 on both."""
+    """How gold the Q and E key boxes are (0-1); the Exchange bar scores about 0.39 on both."""
     scores = []
     for fractions in _KEY_BOXES:
         left, top, right, bottom = region(frame, fractions)

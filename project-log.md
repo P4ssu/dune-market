@@ -2,6 +2,11 @@
 
 Newer entries are at the top. Each entry: date, what was done, why. Add a new entry at the end of a session.
 
+## 2026-10-19 (session 5)
+
+- **Chest hover fix.** Hovering items in chests/storage showed no price popup: the storage screen has the same Q/E tab bar as the Exchange, only about 0.012 of the width nearer the middle, so `exchange_tab_open` called it the Exchange and the popup stayed silent on purpose. The check now looks at narrow strips only the Exchange's key boxes fill (Exchange 0.38-0.40, chest 0.09-0.12; threshold 0.25). Test on the four chest screenshots added; 213 tests pass.
+- **Release 1.2.1** (chest popups). Trend arrows (▲/▼) need two Sell scans of an item at least 12 hours apart (at most 7 days old); checked with the owner.
+
 ## 2026-10-19 (session 4)
 
 - **Public GitHub repository** (P4ssu/dune-market). Before publishing, the history was rewritten to use the GitHub noreply email (tree identical), `.gitignore` and a README were added.

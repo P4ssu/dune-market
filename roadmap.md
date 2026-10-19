@@ -11,7 +11,8 @@ Update this file when something gets done or the plan changes. History and reaso
 - Item search window (hotkey, default Ctrl+Shift+F, configurable): live results with grade, average, cheapest and age.
 - Self-updating program: GitHub releases are built by Actions on a version tag; running copies download, verify and install updates at the next start (tested end to end). Public repo https://github.com/P4ssu/dune-market.
 - Local-first sync with a shared Supabase table and a PyInstaller package for friends (129 MB zip).
-- Release 1.2.0 published on GitHub and verified; Supabase `releases` row points 1.1.0 copies to the 1.2.0 installer zip (212 tests pass).
+- Release 1.2.0 published on GitHub and verified; Supabase `releases` row points 1.1.0 copies to the 1.2.0 installer zip.
+- Release 1.2.1: hover popups also work in chests/storage (213 tests pass).
 
 ## In progress
 
