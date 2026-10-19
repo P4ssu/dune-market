@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 
 _HEADER_BAND = 0.12  # top fraction of the frame holding the Exchange tab names
 _REGION_W, _REGION_H = 0.20, 0.25  # half-size of the crop around the cursor, as frame fractions
+_HEADER_READ_W = 0.30  # width of the second, header-only crop, as a frame fraction
 _LINE_HEIGHT = 28  # approximate popup line height in pixels, used to place it above the tooltip
 
 
@@ -83,6 +84,14 @@ def hover_popup(
     hit = find_tooltip(read(frame.crop((left, top, right, bottom)), (left, top)), cursor)
     if hit is None:
         return None
+
+    # The first crop can cut the header text short, so read the header again
+    # with a crop that extends well past it.
+    left = max(0, int(hit.x) - 30)
+    top = max(0, int(hit.y) - 10)
+    right = min(width, int(hit.x + width * _HEADER_READ_W))
+    bottom = min(height, int(hit.y) + 90)
+    hit = find_tooltip(read(frame.crop((left, top, right, bottom)), (left, top)), (int(hit.x), int(hit.y))) or hit
 
     lines = format_popup(hit.name, store.lookup(hit.name, hit.category, now), now)
     y = max(0, int(hit.y) - _LINE_HEIGHT * len(lines) - 24)

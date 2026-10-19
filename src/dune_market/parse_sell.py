@@ -1,7 +1,7 @@
 """Parse the Exchange Sell tab (the player's backpack with AVG. and LOW prices)."""
 
 from dune_market.models import SellRow, Word
-from dune_market.ocr import normalize_category, normalize_name, parse_price
+from dune_market.ocr import name_line, normalize_category, normalize_name, parse_price
 
 
 def _center(word: Word) -> float:
@@ -50,7 +50,7 @@ def parse_sell(words: list[Word]) -> list[SellRow]:
         ]
         if not names:
             continue
-        name = normalize_name(min(names, key=lambda w: w.y).text)
+        name = normalize_name(name_line(band, min(names, key=lambda w: w.y)))
 
         values: dict[str, int] = {}
         for column, center in columns.items():

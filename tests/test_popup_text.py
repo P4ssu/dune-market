@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from PIL import Image
 
@@ -109,3 +110,17 @@ def test_hover_popup_none_without_tooltip(tmp_path):
 
 def test_hover_popup_none_without_frame(tmp_path):
     assert hover_popup(None, (500, 500), dust_store(tmp_path), NOW, fake_reader([])) is None
+
+
+def test_hover_popup_real_ocr_reads_the_full_name(tmp_path):
+    """A crop that cuts the tooltip header would truncate the name (seen with real OCR)."""
+    import pytest
+
+    from dune_market.ocr import read_words
+
+    path = Path(__file__).resolve().parent.parent / "screenshots" / "item hover.png"
+    if not path.exists():
+        pytest.skip("missing screenshot item hover.png")
+    popup = hover_popup(Image.open(path).convert("RGB"), (842, 927), dust_store(tmp_path), NOW, read_words)
+    assert popup.lines[0] == "Spice-infused Plastanium Dust"
+    assert "Avg price: 5,000" in popup.lines

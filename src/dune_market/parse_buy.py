@@ -3,7 +3,7 @@
 import re
 
 from dune_market.models import BuyRow, Word
-from dune_market.ocr import normalize_category, normalize_name, parse_price
+from dune_market.ocr import name_line, normalize_category, normalize_name, parse_price
 
 _EXPIRATION_RE = re.compile(r"^(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$")
 _GRADE_RE = re.compile(r"GRADE:?(.+)", re.IGNORECASE)
@@ -80,7 +80,7 @@ def parse_buy(words: list[Word]) -> tuple[str, list[BuyRow]]:
         rows.append(
             BuyRow(
                 category=normalize_category(cat.text),
-                name=normalize_name(min(names, key=lambda w: w.y).text),
+                name=normalize_name(name_line(band, min(names, key=lambda w: w.y))),
                 price=parse_price(prices[0].text),
                 expires_in_s=parse_expiration(expiries[0].text),
             )

@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass
 
 from dune_market.models import Word
-from dune_market.ocr import normalize_category, normalize_name, parse_price
+from dune_market.ocr import name_line, normalize_category, normalize_name, parse_price
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ def find_tooltip(words: list[Word], cursor: tuple[int, int]) -> TooltipHit | Non
         name = min(below, key=lambda w: w.y)
         distance = math.hypot(cat.x + cat.w / 2 - cursor[0], cat.y + cat.h / 2 - cursor[1])
         if best is None or distance < best[0]:
-            best = (distance, TooltipHit(normalize_name(name.text), category, cat.x, cat.y, cat.w, cat.h))
+            best = (distance, TooltipHit(normalize_name(name_line(words, name)), category, cat.x, cat.y, cat.w, cat.h))
     return None if best is None else best[1]
 
 

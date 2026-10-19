@@ -73,3 +73,32 @@ def normalize_name(text: str) -> str:
     text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text.strip())
     text = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", text)
     return " ".join(text.split())
+
+
+_NAME_GAP = 60  # px; a wider gap on the same line starts a different column
+_NAME_LINE_TOLERANCE = 12  # px between line centres that still counts as one line
+
+
+def name_line(words: list[Word], first: Word) -> str:
+    """The full text of the line starting at `first`.
+
+    The OCR engine sometimes splits a name into two spans ("Spice-infused
+    Plastanium" + "Dust"); spans close to the end of the line belong to it.
+    """
+    centre = first.y + first.h / 2
+    same_line = sorted(
+        (
+            w for w in words
+            if w is not first and w.x > first.x
+            and abs(w.y + w.h / 2 - centre) < _NAME_LINE_TOLERANCE
+            and parse_price(w.text) is None
+        ),
+        key=lambda w: w.x,
+    )
+    parts, end = [first.text], first.x + first.w
+    for w in same_line:
+        if w.x - end >= _NAME_GAP:
+            break
+        parts.append(w.text)
+        end = w.x + w.w
+    return " ".join(parts)

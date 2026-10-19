@@ -1,4 +1,5 @@
-from dune_market.ocr import normalize_category, normalize_name, parse_price
+from dune_market.models import Word
+from dune_market.ocr import name_line, normalize_category, normalize_name, parse_price
 
 
 def test_parse_price_handles_commas():
@@ -42,3 +43,19 @@ def test_normalize_name_splits_joined_words():
     assert normalize_name("EMFGenerator") == "EMF Generator"
     assert normalize_name("CollapsibleDewReaperMk6") == "Collapsible Dew Reaper Mk6"
     assert normalize_name("Spice-infused Plastanium Dust") == "Spice-infused Plastanium Dust"
+
+
+def test_name_line_joins_spans_the_ocr_split():
+    first = Word("Spice-infused Plastanium", 994, 883, 320, 30)
+    words = [
+        first,
+        Word("Dust", 1317, 889, 56, 19),  # same line, small gap: part of the name
+        Word("Far Away", 1900, 886, 80, 20),  # same line, big gap: not part of the name
+        Word("Next line", 996, 940, 100, 20),  # different line
+    ]
+    assert name_line(words, first) == "Spice-infused Plastanium Dust"
+
+
+def test_name_line_single_span():
+    first = Word("Cobalt Paste", 286, 757, 164, 32)
+    assert name_line([first], first) == "Cobalt Paste"
