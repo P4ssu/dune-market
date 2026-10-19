@@ -67,15 +67,15 @@ def replace_updated(s, minutes):
 
 # --- hover_popup: frame + cursor -> popup lines and position -------------------------------
 
-FRAME = Image.new("RGB", (2559, 1599))
+BLACK = Image.new("RGB", (2559, 1599))
 
 
 def fake_reader(words):
     """Pretend OCR: return the known words that fall inside the requested crop."""
 
-    def read(image, offset=(0, 0)):
+    def read(image, offset=(0, 0), scale=1):
         ox, oy = offset
-        return [w for w in words if ox <= w.x < ox + image.width and oy <= w.y < oy + image.height]
+        return [w for w in words if ox <= w.x < ox + image.width / scale and oy <= w.y < oy + image.height / scale]
 
     return read
 
@@ -87,25 +87,30 @@ def dust_store(tmp_path):
     return store
 
 
-def test_hover_popup_shows_stats(shot_words, tmp_path):
-    popup = hover_popup(FRAME, (842, 927), dust_store(tmp_path), NOW, fake_reader(shot_words("item hover")))
+def test_hover_popup_shows_stats(shot_words, shot_image, tmp_path):
+    popup = hover_popup(shot_image("item hover"), (842, 927), dust_store(tmp_path), NOW, fake_reader(shot_words("item hover")))
     assert popup.lines[0] == "Spice-infused Plastanium Dust"
     assert "Avg price: 5,000" in popup.lines
-    assert popup.y < 861  # placed above the tooltip header, which sits at y=861
+    assert popup.y < 851  # placed above the tooltip banner, whose top border is at y=851
 
 
-def test_hover_popup_no_data_yet(shot_words, tmp_path):
-    popup = hover_popup(FRAME, (531, 620), dust_store(tmp_path), NOW, fake_reader(shot_words("schematic hover")))
+def test_hover_popup_no_data_yet(shot_words, shot_image, tmp_path):
+    popup = hover_popup(shot_image("schematic hover"), (531, 620), dust_store(tmp_path), NOW, fake_reader(shot_words("schematic hover")))
     assert popup.lines == ["Quick-release Trigger", "No price data yet"]
 
 
-def test_hover_popup_none_on_exchange_tab(shot_words, tmp_path):
-    popup = hover_popup(FRAME, (500, 480), dust_store(tmp_path), NOW, fake_reader(shot_words("sell")))
-    assert popup is None
+def test_hover_popup_none_on_exchange_tab(shot_words, shot_image, tmp_path):
+    from dune_market.banner import find_banner
+
+    sell = shot_image("sell")
+    assert find_banner(sell, (2000, 500)) is not None  # the detail panel title banner: the check below is really exercised
+    assert hover_popup(sell, (2000, 500), dust_store(tmp_path), NOW, fake_reader(shot_words("sell"))) is None
 
 
-def test_hover_popup_none_without_tooltip(tmp_path):
-    assert hover_popup(FRAME, (500, 500), dust_store(tmp_path), NOW, fake_reader([])) is None
+def test_hover_popup_none_without_tooltip_costs_no_ocr(tmp_path):
+    calls = []
+    assert hover_popup(BLACK, (500, 500), dust_store(tmp_path), NOW, lambda image, offset=(0, 0), scale=1: calls.append(1) or []) is None
+    assert calls == []
 
 
 def test_hover_popup_none_without_frame(tmp_path):
@@ -126,16 +131,18 @@ def test_hover_popup_real_ocr_reads_the_full_name(tmp_path):
     assert "Avg price: 5,000" in popup.lines
 
 
-def test_hover_popup_header_check_reads_only_the_centre_tabs(shot_words, tmp_path):
+def test_hover_popup_header_check_reads_only_the_centre_tabs(shot_words, shot_image, tmp_path):
     """The first OCR call must not include the screen corners (character name, Solari balance)."""
     calls = []
     inner = fake_reader(shot_words("item hover"))
 
-    def recording(image, offset=(0, 0)):
-        calls.append((offset, image.size))
-        return inner(image, offset)
+    def recording(image, offset=(0, 0), scale=1):
+        calls.append((offset, (image.width / scale, image.height / scale)))
+        return inner(image, offset, scale)
 
-    hover_popup(FRAME, (842, 927), dust_store(tmp_path), NOW, recording)
+    image = shot_image("item hover")
+    hover_popup(image, (842, 927), dust_store(tmp_path), NOW, recording)
     header_calls = [(x, w) for (x, y), (w, h) in calls if y == 0]
     assert header_calls
-    assert all(x > 300 and x + w < FRAME.width - 300 for x, w in header_calls)
+    assert all(x > 300 and x + w < image.width - 300 for x, w in header_calls)
+    assert all(w * h < 0.15 * image.width * image.height for _, (w, h) in calls)  # only small crops are OCR'd

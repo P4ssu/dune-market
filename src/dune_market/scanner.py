@@ -9,7 +9,7 @@ from PIL import Image, ImageChops, ImageStat
 
 from dune_market.capture import grab_frame
 from dune_market.models import ItemKey, Observation, Screen, Word
-from dune_market.ocr import name_key, read_words
+from dune_market.ocr import name_key, read_header, read_words
 from dune_market.parse_buy import parse_buy
 from dune_market.parse_sell import parse_sell
 from dune_market.screens import classify, exchange_tab_open
@@ -129,7 +129,7 @@ class Scanner:
         width, height = frame.size
         left, top = int(width * PANEL_TITLE_REGION[0]), int(height * PANEL_TITLE_REGION[1])
         crop = frame.crop((left, top, int(width * PANEL_TITLE_REGION[2]), int(height * PANEL_TITLE_REGION[3])))
-        return [w for w in self._read(crop, (left, top)) if w.x >= left]
+        return [w for w in read_header(self._read, crop, (left, top)) if w.x >= left]
 
     def _passes_guard(self, obs: Observation) -> bool:
         if accept(obs, self._store.latest_sell(obs.key)):

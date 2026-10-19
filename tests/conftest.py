@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from dune_market.ocr import read_words
+from dune_market.ocr import read_header, read_words
 
 SCREENSHOTS = Path(__file__).resolve().parent.parent / "screenshots"
 _cache: dict[tuple[str, float], list] = {}
@@ -40,6 +40,19 @@ def shot_crop():
         if not path.exists():
             pytest.skip(f"missing screenshot {path.name}")
         image = Image.open(path).convert("RGB").crop(box)
-        return read_words(image, (box[0], box[1]))
+        return read_header(read_words, image, (box[0], box[1]))
+
+    return load
+
+
+@pytest.fixture(scope="session")
+def shot_image():
+    """A screenshot as a PIL image; skips the test if the file is missing."""
+
+    def load(name: str):
+        path = SCREENSHOTS / f"{name}.png"
+        if not path.exists():
+            pytest.skip(f"missing screenshot {path.name}")
+        return Image.open(path).convert("RGB")
 
     return load

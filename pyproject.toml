@@ -9,6 +9,7 @@ dependencies = [
     "rapidocr-onnxruntime",
     "PyQt6",
     "httpx",
+    "numpy",
 ]
 
 [project.optional-dependencies]

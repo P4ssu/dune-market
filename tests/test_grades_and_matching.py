@@ -14,13 +14,12 @@ from dune_market.scanner import Scanner
 from dune_market.store_sqlite import SqliteStore
 
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
-FRAME = Image.new("RGB", (2559, 1599))
 
 
 def fake_reader(words):
-    def read(image, offset=(0, 0)):
+    def read(image, offset=(0, 0), scale=1):
         ox, oy = offset
-        return [w for w in words if ox <= w.x < ox + image.width and oy <= w.y < oy + image.height]
+        return [w for w in words if ox <= w.x < ox + image.width / scale and oy <= w.y < oy + image.height / scale]
 
     return read
 
@@ -112,8 +111,8 @@ def schematic_reader(shot_words, shot_crop):
     full = fake_reader(shot_words("schematic hover"))
     header = shot_crop("schematic hover", (659, 343, 1457, 443))
 
-    def read(image, offset=(0, 0)):
-        return header if image.height <= 120 else full(image, offset)
+    def read(image, offset=(0, 0), scale=1):
+        return header if image.height / scale <= 120 else full(image, offset, scale)
 
     return read
 
@@ -127,32 +126,32 @@ def _grade_store(tmp_path, *observations):
 NAME, CAT = "Quick-release Trigger", "SCHEMATIC - UNIQUE"
 
 
-def test_hover_grade_selects_the_matching_stats_block(shot_words, shot_crop, tmp_path):
+def test_hover_grade_selects_the_matching_stats_block(shot_words, shot_crop, shot_image, tmp_path):
     store = _grade_store(
         tmp_path,
         Observation(ItemKey(NAME, CAT, "1"), "sell", NOW - timedelta(hours=1), "Mari", avg=700, low=600),
         Observation(ItemKey(NAME, CAT, "unknown"), "buy", NOW - timedelta(hours=1), "Mari", price=500, expires_in_s=100),
     )
-    popup = hover_popup(FRAME, (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
+    popup = hover_popup(shot_image("schematic hover"), (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
     assert "Grade: 1" in popup.lines and "Avg price: 700" in popup.lines
     assert "Grade unknown" not in popup.lines  # the exact grade wins
 
 
-def test_hover_grade_falls_back_to_unknown_grade_stats(shot_words, shot_crop, tmp_path):
+def test_hover_grade_falls_back_to_unknown_grade_stats(shot_words, shot_crop, shot_image, tmp_path):
     store = _grade_store(
         tmp_path,
         Observation(ItemKey(NAME, CAT, "unknown"), "buy", NOW - timedelta(hours=1), "Mari", price=500, expires_in_s=100),
     )
-    popup = hover_popup(FRAME, (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
+    popup = hover_popup(shot_image("schematic hover"), (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
     assert "Grade unknown" in popup.lines and "Cheapest now: 500" in popup.lines
 
 
-def test_hover_grade_lists_other_grades_when_nothing_else_matches(shot_words, shot_crop, tmp_path):
+def test_hover_grade_lists_other_grades_when_nothing_else_matches(shot_words, shot_crop, shot_image, tmp_path):
     store = _grade_store(
         tmp_path,
         Observation(ItemKey(NAME, CAT, "3"), "buy", NOW - timedelta(hours=1), "Mari", price=900, expires_in_s=100),
     )
-    popup = hover_popup(FRAME, (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
+    popup = hover_popup(shot_image("schematic hover"), (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
     assert "Grade: 3" in popup.lines
 
 

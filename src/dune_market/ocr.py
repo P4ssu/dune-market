@@ -2,6 +2,7 @@
 
 import os
 import re
+from collections.abc import Callable
 
 import numpy as np
 from PIL import Image
@@ -17,12 +18,25 @@ def _get_engine():
         from rapidocr_onnxruntime import RapidOCR
 
         # More threads than this is slower, not faster: ~1.2 s instead of ~5 s per frame on a 24-core CPU.
-        _engine = RapidOCR(intra_op_num_threads=min(6, os.cpu_count() or 1), inter_op_num_threads=1)
+        # det_limit_type="max": the default ("min") blows small crops up to 736 px on the short side,
+        # which made reading a 600x85 tooltip header take 1 s instead of 0.1 s.
+        _engine = RapidOCR(
+            intra_op_num_threads=min(6, os.cpu_count() or 1),
+            inter_op_num_threads=1,
+            det_limit_type="max",
+            det_limit_side_len=2600,
+        )
     return _engine
 
 
-def read_words(image: Image.Image, offset: tuple[int, int] = (0, 0)) -> list[Word]:
-    """OCR an image; positions are shifted by `offset` (for cropped regions)."""
+def read_words(image: Image.Image, offset: tuple[int, int] = (0, 0), scale: float = 1.0) -> list[Word]:
+    """OCR an image; positions are shifted by `offset` (for cropped regions).
+
+    `scale` > 1 enlarges the image first (tiny glyphs such as the grade number need it); the
+    returned positions are still in the original image's pixels.
+    """
+    if scale != 1.0:
+        image = image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
     result, _ = _get_engine()(np.array(image.convert("RGB")))
     words = []
     for box, text, _score in result or []:
@@ -31,10 +45,10 @@ def read_words(image: Image.Image, offset: tuple[int, int] = (0, 0)) -> list[Wor
         words.append(
             Word(
                 text=text,
-                x=min(xs) + offset[0],
-                y=min(ys) + offset[1],
-                w=max(xs) - min(xs),
-                h=max(ys) - min(ys),
+                x=min(xs) / scale + offset[0],
+                y=min(ys) / scale + offset[1],
+                w=(max(xs) - min(xs)) / scale,
+                h=(max(ys) - min(ys)) / scale,
             )
         )
     return words
@@ -128,3 +142,15 @@ def find_grade_badge(words: list[Word], cat: Word, line_end: float, line_centre:
         and line_end <= w.x < cat.x + _BADGE_REACH * cat.w
     ]
     return min(badges, key=lambda w: w.x).text.strip() if badges else "0"
+
+
+def read_header(read: Callable[..., list[Word]], crop: Image.Image, origin: tuple[int, int]) -> list[Word]:
+    """OCR a tooltip/panel header crop: normal-size text plus the tiny grade digit.
+
+    Enlarging the crop makes the grade digit readable but garbles letter case ("COmPONENTS"), so the
+    text comes from the plain read and only digit-only spans are taken from the enlarged read.
+    """
+    words = read(crop, origin)
+    if any(_BADGE_RE.match(w.text.strip()) for w in words):
+        return words
+    return words + [w for w in read(crop, origin, scale=2) if _BADGE_RE.match(w.text.strip())]

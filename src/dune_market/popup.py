@@ -8,15 +8,14 @@ from datetime import datetime
 from PIL import Image
 
 from dune_market.models import ItemStats, Word
-from dune_market.ocr import read_words
+from dune_market.ocr import read_header, read_words
+from dune_market.banner import find_banner
 from dune_market.parse_tooltip import find_tooltip
 from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
 
 log = logging.getLogger(__name__)
 
-_REGION_W, _REGION_H = 0.20, 0.25  # half-size of the crop around the cursor, as frame fractions
-_HEADER_READ_W = 0.30  # width of the second, header-only crop, as a frame fraction
 _LINE_HEIGHT = 28  # approximate popup line height in pixels, used to place it above the tooltip
 
 
@@ -79,36 +78,38 @@ def hover_popup(
     cursor: tuple[int, int],
     store: PriceStore,
     now: datetime,
-    read: Callable[[Image.Image, tuple[int, int]], list[Word]] = read_words,
+    read: Callable[..., list[Word]] = read_words,
 ) -> PopupData | None:
-    """The popup for the inventory tooltip under the cursor, or None."""
+    """The popup for the inventory tooltip under the cursor, or None.
+
+    The tooltip header banner is found by its gold border lines (no OCR), so hovering where there
+    is no tooltip costs almost nothing, and only a tiny crop of the banner is OCR'd.
+    """
     if frame is None:
         return None
     width, height = frame.size
     if not (0 <= cursor[0] < width and 0 <= cursor[1] < height):
         return None  # cursor on another monitor
-
-    # Pass 1: one crop around the cursor. Most hovers end here (no tooltip).
-    region, origin = _crop(frame, cursor[0] - width * _REGION_W, cursor[1] - height * _REGION_H,
-                           cursor[0] + width * _REGION_W, cursor[1] + height * _REGION_H)
-    hit = find_tooltip(read(region, origin), cursor)
-    if hit is None:
+    banner = find_banner(frame, cursor)
+    if banner is None:
         return None
 
-    # Exchange tabs list items with the same category-line pattern as tooltips, so stay quiet
+    # Exchange tabs have banners and category lines too (the detail panel), so stay quiet
     # whenever an Exchange tab is open.
     if exchange_tab_open(frame, read):
         return None
 
-    # Pass 2: the first crop can cut the header text short and misses the tiny grade number,
-    # so read the header again with a tight crop that extends well past it.
-    tight, tight_origin = _crop(frame, hit.x - 30, hit.y - 10, hit.x + width * _HEADER_READ_W, hit.y + 90)
-    hit = find_tooltip(read(tight, tight_origin), (int(hit.x), int(hit.y))) or hit
+    margin = 6
+    crop, origin = _crop(frame, banner.x - margin, banner.y - margin,
+                         banner.x + banner.w + margin, banner.y + banner.h + margin)
+    hit = find_tooltip(read_header(read, crop, origin), cursor)
+    if hit is None:
+        return None
 
     stats = select_stats(store.lookup(hit.name, hit.category, now), hit.grade)
     lines = format_popup(hit.name, stats, now)
-    y = max(0, int(hit.y) - _LINE_HEIGHT * len(lines) - 24)
-    return PopupData(lines, int(hit.x), y)
+    y = max(0, banner.y - _LINE_HEIGHT * len(lines) - 24)
+    return PopupData(lines, banner.x, y)
 
 
 class HoverTracker:
