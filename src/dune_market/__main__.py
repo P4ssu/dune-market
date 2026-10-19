@@ -82,8 +82,7 @@ def main() -> None:
         if not getattr(sys, "frozen", False):
             raise
         # A double-clicked .exe closes its window at once; keep the message readable.
-        print(f"
-ERROR: {error}")
+        print(f"\nERROR: {error}")
         input("Press Enter to close this window.")
         raise SystemExit(1)
 
