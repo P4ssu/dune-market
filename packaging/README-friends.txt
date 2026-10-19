@@ -30,6 +30,17 @@ USE
    Esc closes the search.
 4. To stop: close the black window.
 
+GETTING GOOD PRICES (tips for scanning the Buy tab)
+* Sort by NAME: click the NAME column in the Buy tab. All listings of the same item then sit next to
+  each other, so while you scroll the tool sees every listing of an item and finds its cheapest price
+  reliably. (With the default order the listings of one item are spread out and the cheapest can be missed.)
+* Scan between grades: prices differ by grade. Switch the GRADE filter (bottom left of the Buy tab) and
+  scroll each grade you care about. That is how the tool learns grade-specific prices, so the popup shows
+  the right price for the exact grade of your item. With GRADE: ALL the prices are saved too, but without a
+  grade; they are only used as a fallback.
+* Scroll steadily; the tool reads the list every second or two and the notice at the top of the screen
+  tells you how many new items it found.
+
 SETTINGS
 Edit  %LOCALAPPDATA%\DuneMarket\config.toml  with Notepad (press Win+R, paste the path, press Enter):
   contributor    your name
