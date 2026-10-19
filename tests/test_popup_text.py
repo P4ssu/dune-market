@@ -146,3 +146,16 @@ def test_hover_popup_header_check_reads_only_the_centre_tabs(shot_words, shot_im
     assert header_calls
     assert all(x > 300 and x + w < image.width - 300 for x, w in header_calls)
     assert all(w * h < 0.15 * image.width * image.height for _, (w, h) in calls)  # only small crops are OCR'd
+
+
+def test_hover_popup_skips_the_tab_bar_ocr_when_told_the_exchange_is_closed(shot_words, shot_image, tmp_path):
+    calls = []
+    inner = fake_reader(shot_words("item hover"))
+
+    def recording(image, offset=(0, 0), scale=1):
+        calls.append(offset)
+        return inner(image, offset, scale)
+
+    popup = hover_popup(shot_image("item hover"), (842, 927), dust_store(tmp_path), NOW, recording, exchange_open=lambda frame: False)
+    assert popup is not None
+    assert all(y > 0 for _, y in calls)  # nothing from the top strip

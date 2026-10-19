@@ -1,19 +1,26 @@
 """Screen capture and cursor position (Windows)."""
 
 import ctypes
+import threading
 from ctypes import wintypes
 
 import mss
 from PIL import Image
 
 
+_local = threading.local()
+
+
 def grab_frame() -> Image.Image | None:
     """Capture the primary monitor; None if the capture fails."""
     try:
-        with mss.MSS() as sct:
-            shot = sct.grab(sct.monitors[1])
-            return Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+        sct = getattr(_local, "sct", None)
+        if sct is None:
+            sct = _local.sct = mss.MSS()  # one per thread, reused: creating it each time costs ~20 ms
+        shot = sct.grab(sct.monitors[1])
+        return Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
     except Exception:
+        _local.sct = None
         return None
 
 

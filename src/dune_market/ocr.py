@@ -2,6 +2,7 @@
 
 import os
 import re
+import threading
 from collections.abc import Callable
 
 import numpy as np
@@ -10,6 +11,7 @@ from PIL import Image
 from dune_market.models import Word
 
 _engine = None
+_engine_lock = threading.Lock()  # the scanner and the hover loop share one engine
 
 
 def _get_engine():
@@ -37,7 +39,8 @@ def read_words(image: Image.Image, offset: tuple[int, int] = (0, 0), scale: floa
     """
     if scale != 1.0:
         image = image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
-    result, _ = _get_engine()(np.array(image.convert("RGB")))
+    with _engine_lock:
+        result, _ = _get_engine()(np.array(image.convert("RGB")))
     words = []
     for box, text, _score in result or []:
         xs = [p[0] for p in box]

@@ -48,6 +48,13 @@ def observations_from_words(words: list[Word], contributor: str, now: datetime) 
     return []  # My Orders (own listings) and every other screen
 
 
+def _describe(obs: Observation) -> str:
+    if obs.kind == "sell":
+        return "Sell tab"
+    grade = "all grades" if obs.key.grade == "unknown" else f"grade {obs.key.grade}"
+    return f"Buy tab · {obs.key.category} · {grade}"
+
+
 def _within_jump(new: int | None, old: int | None) -> bool:
     if new is None or not old:
         return True
@@ -81,6 +88,8 @@ class Scanner:
         self._seen: set[tuple[str, str, str]] = set()
         self.last_new = 0  # items not seen before in this session, in the last scan
         self.session_total = 0  # distinct items seen in this session
+        self.last_label = ""  # what the last scan read, e.g. "Buy tab · GARMENTS - LIGHTARMOR · grade 3"
+        self.last_rows = 0
 
     def _changed(self, frame: Image.Image) -> bool:
         thumb = frame.convert("L").resize(_THUMB_SIZE)
@@ -120,6 +129,8 @@ class Scanner:
             self.last_new = len(keys - self._seen)
             self._seen |= keys
             self.session_total = len(self._seen)
+            if accepted:
+                self.last_rows, self.last_label = len(accepted), _describe(accepted[0])
             return len(accepted)
         except Exception:
             log.exception("scan failed")

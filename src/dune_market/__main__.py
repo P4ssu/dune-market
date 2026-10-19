@@ -1,4 +1,4 @@
-"""Command line entry: `python -m dune_market scan` and `python -m dune_market overlay`."""
+"""Command line entry: `python -m dune_market run` (scanner and price popups together)."""
 
 import argparse
 import logging
@@ -31,21 +31,31 @@ def _overlay(args: argparse.Namespace) -> None:
     run_overlay(SqliteStore(args.db), debug=args.debug, solid=args.solid)
 
 
+def _run(args: argparse.Namespace) -> None:
+    from dune_market.overlay import run_overlay
+
+    config = load_config(args.config)
+    run_overlay(SqliteStore(args.db), debug=args.debug, solid=args.solid, contributor=config.contributor)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(prog="dune_market")
     parser.add_argument("--config", default="config.toml")
     parser.add_argument("--db", default="prices.db")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("scan", help="read Sell/Buy tabs from the screen into the price database")
-    overlay = sub.add_parser("overlay", help="show the price popup when hovering inventory items")
-    overlay.add_argument("--debug", action="store_true", help="log every lookup and save the screen it found nothing on")
-    overlay.add_argument("--solid", action="store_true", help="use an opaque window (try this if the popup is not visible over the game)")
+
+    sub.add_parser("scan", help="only read Sell/Buy tabs from the screen into the price database")
+    for name, help_text in (
+        ("overlay", "only show the price popup when hovering inventory items"),
+        ("run", "scan the Exchange and show price popups and in-game notices (use this one)"),
+    ):
+        command = sub.add_parser(name, help=help_text)
+        command.add_argument("--debug", action="store_true", help="log every lookup and save the screen it found nothing on")
+        command.add_argument("--solid", action="store_true", help="use opaque windows (if the popup is not visible over the game)")
+
     args = parser.parse_args()
-    if args.command == "scan":
-        _scan(args)
-    else:
-        _overlay(args)
+    {"scan": _scan, "overlay": _overlay, "run": _run}[args.command](args)
 
 
 if __name__ == "__main__":

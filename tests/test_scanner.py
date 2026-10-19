@@ -117,3 +117,20 @@ def test_scanner_skips_the_list_ocr_outside_the_exchange(shot_words, tmp_path):
     assert len(calls) == 1  # only the small header strip was read
     assert scanner.scan_once(NOW + timedelta(seconds=0.1)) == 0
     assert len(calls) == 1  # and the negative answer is remembered for a moment
+
+
+def test_scanner_describes_what_it_just_read(shot_words, tmp_path):
+    big = Image.new("RGB", (2560, 1600), (10, 10, 10))
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: big,
+                      read=lambda image, offset=(0, 0), scale=1: shot_words("sell"))
+    scanner.scan_once(NOW)
+    assert scanner.last_label == "Sell tab"
+    assert scanner.last_rows == 6
+
+
+def test_scanner_label_for_buy_tab_names_category_and_grade(shot_words, tmp_path):
+    big = Image.new("RGB", (2560, 1600), (10, 10, 10))
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: big,
+                      read=lambda image, offset=(0, 0), scale=1: shot_words("buy tab"))
+    scanner.scan_once(NOW)
+    assert scanner.last_label == "Buy tab · GARMENTS - LIGHTARMOR · all grades"

@@ -1,6 +1,8 @@
 """What the price popup says and where it goes (pure logic, no GUI)."""
 
+import html as _html
 import logging
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,6 +17,10 @@ from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
 
 log = logging.getLogger(__name__)
+
+GOLD, TEXT, MUTED = "#e6c984", "#f1e8d2", "#a09580"
+GREEN, RED, AMBER = "#86d493", "#ea7d70", "#e8aa4a"
+_TREND_RE = re.compile(r"^(.*?)\s([▲▼])\s(\S+)$")
 
 _LINE_HEIGHT = 28  # approximate popup line height in pixels, used to place it above the tooltip
 
@@ -79,6 +85,7 @@ def hover_popup(
     store: PriceStore,
     now: datetime,
     read: Callable[..., list[Word]] = read_words,
+    exchange_open: Callable[[Image.Image], bool] | None = None,
 ) -> PopupData | None:
     """The popup for the inventory tooltip under the cursor, or None.
 
@@ -96,7 +103,7 @@ def hover_popup(
 
     # Exchange tabs have banners and category lines too (the detail panel), so stay quiet
     # whenever an Exchange tab is open.
-    if exchange_tab_open(frame, read):
+    if exchange_open(frame) if exchange_open else exchange_tab_open(frame, read):
         return None
 
     margin = 6
@@ -120,7 +127,7 @@ class HoverTracker:
         lookup: Callable[[tuple[int, int]], PopupData | None],
         on_show: Callable[[PopupData], None],
         on_hide: Callable[[], None],
-        still_seconds: float = 0.4,
+        still_seconds: float = 0.25,
         jitter_px: int = 8,
         current_cursor: Callable[[], tuple[int, int]] | None = None,
     ):
@@ -159,3 +166,57 @@ class HoverTracker:
             return False
         now = self._current_cursor()
         return max(abs(now[0] - cursor[0]), abs(now[1] - cursor[1])) > self._jitter_px
+
+
+def _esc(text: str) -> str:
+    return _html.escape(text, quote=False)
+
+
+def render_html(lines: list[str]) -> str:
+    """Rich text for the popup: title, one section per grade, label/value rows, a muted footer."""
+    title, *rest = lines
+    rows = []
+    for line in rest:
+        if line.startswith("Grade"):
+            grade = line.removeprefix("Grade").removeprefix(":").strip().upper()
+            spacer = '<tr><td colspan="2" style="font-size:3pt">&nbsp;</td></tr>' if rows else ""
+            rows.append(f'{spacer}<tr><td colspan="2" style="color:{GOLD};font-size:8pt">GRADE {_esc(grade)}</td></tr>')
+        elif line.startswith("Updated"):
+            color = AMBER if line.endswith("(old)") else MUTED
+            rows.append(f'<tr><td colspan="2" style="color:{color};font-size:8pt">{_esc(line)}</td></tr>')
+        elif ": " in line:
+            label, value = line.split(": ", 1)
+            trend = ""
+            match = _TREND_RE.match(value)
+            if match:
+                value, arrow, pct = match.groups()
+                trend = f' <span style="color:{GREEN if arrow == "▲" else RED}">{arrow} {_esc(pct)}</span>'
+            emphasis = GOLD if label.startswith("Cheapest") else TEXT
+            rows.append(
+                f'<tr><td style="color:{MUTED}">{_esc(label)}</td>'
+                f'<td align="right" style="color:{emphasis};font-weight:600">{_esc(value)}{trend}</td></tr>'
+            )
+        else:
+            rows.append(f'<tr><td colspan="2" style="color:{MUTED}">{_esc(line)}</td></tr>')
+    return (
+        f'<div style="color:{GOLD};font-size:13pt;font-weight:600">{_esc(title)}</div>'
+        f'<table width="100%" cellspacing="0" cellpadding="3" style="margin-top:4px">{"".join(rows)}</table>'
+    )
+
+
+def scan_toast_lines(label: str, rows: int, new: int, total: int) -> list[str]:
+    """The in-game notice shown while the scanner is reading the Exchange."""
+    return [
+        "Dune Market · scanning",
+        label,
+        f"{rows} rows read · {new} new items · {total} items this session",
+    ]
+
+
+def render_toast_html(lines: list[str]) -> str:
+    head, *rest = lines
+    body = "".join(
+        f'<div style="color:{TEXT if i == 0 else MUTED};font-size:{"10pt" if i == 0 else "9pt"}">{_esc(line)}</div>'
+        for i, line in enumerate(rest)
+    )
+    return f'<div style="color:{GOLD};font-size:8pt">{_esc(head.upper())}</div>{body}'
