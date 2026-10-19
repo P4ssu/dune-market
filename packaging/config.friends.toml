@@ -7,6 +7,9 @@ contributor = "WRITE-YOUR-NAME-HERE"
 # The key that opens and closes the price search (modifiers: ctrl, shift, alt, win + one key).
 search_hotkey = "ctrl+shift+f"
 
+# New versions download and install by themselves. Set to false to only be told about them.
+auto_update = true
+
 # Shared price database (do not change).
 [remote]
 url = "{{URL}}"

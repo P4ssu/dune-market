@@ -51,8 +51,9 @@ TROUBLESHOOTING
   (it uses a plain window), and make sure the game is in Windowed Fullscreen.
 * Nothing is found in the search: prices exist only for items someone has already browsed in the Exchange.
 * The search hotkey does nothing: another program uses that key. Change search_hotkey in config.toml.
-* Updating: when a new version is published, a notice appears in the game and in the black window
-  with a download link. Download the new zip, unzip it and run Install.bat again. Your settings are kept.
+* Updating: new versions download by themselves in the background and install the next time you start
+  Dune Market (a notice appears in the game). Your settings and saved prices are kept.
+  To turn this off, add the line  auto_update = false  to config.toml; you are then only told about new versions.
 * Remove: run Uninstall.bat.
 
 PRIVACY AND IMPORTANT NOTES

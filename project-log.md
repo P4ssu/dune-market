@@ -2,6 +2,13 @@
 
 Newer entries are at the top. Each entry: date, what was done, why. Add a new entry at the end of a session.
 
+## 2026-10-19 (session 4)
+
+- **Public GitHub repository** (P4ssu/dune-market). Before publishing, the history was rewritten to use the GitHub noreply email (tree identical), `.gitignore` and a README were added.
+- **Self-update.** Pushing a tag `vX.Y.Z` makes GitHub Actions test, build and publish `DuneMarket-update.zip` (program only, no settings or keys) plus a `.sha256`. The program checks the newest release, downloads it in the background, verifies the checksum and installs it at the next start through a small script that never touches `config.toml` or `prices.db`. Tested on the packaged exe in a temporary folder and against the real release. Steps: `docs/releasing.md`.
+- **Fixes:** armor tooltips (header far above the cursor), 16:9 monitors without black bars.
+- **Open:** friends on 1.1.0 must reinstall once with the 1.2.0 installer zip (their old version checks the Supabase `releases` table, not GitHub).
+
 ## 2026-10-19 (session 3)
 
 - **Real-game fixes.** The first real run showed the scanner burning about 95% CPU (OCR thread oversubscription plus continuous OCR), which also made the hover popup arrive too late. Fixed with: OCR capped at 6 threads and a better detection setting, scanner and hover only active when the game window is in front, Exchange tab bar detected from pixels (no OCR), tooltip banner found by its gold border lines (hover about 0.3 s, near zero cost when no tooltip), header read cache, popup stays while the same tooltip is under the cursor, painted dark/gold popup, in-game scan notices, `run` command.
