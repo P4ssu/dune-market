@@ -7,7 +7,9 @@ Newer entries are at the top. Each entry: date, what was done, why. Add a new en
 - **Public GitHub repository** (P4ssu/dune-market). Before publishing, the history was rewritten to use the GitHub noreply email (tree identical), `.gitignore` and a README were added.
 - **Self-update.** Pushing a tag `vX.Y.Z` makes GitHub Actions test, build and publish `DuneMarket-update.zip` (program only, no settings or keys) plus a `.sha256`. The program checks the newest release, downloads it in the background, verifies the checksum and installs it at the next start through a small script that never touches `config.toml` or `prices.db`. Tested on the packaged exe in a temporary folder and against the real release. Steps: `docs/releasing.md`.
 - **Fixes:** armor tooltips (header far above the cursor), 16:9 monitors without black bars.
-- **Open:** friends on 1.1.0 must reinstall once with the 1.2.0 installer zip (their old version checks the Supabase `releases` table, not GitHub).
+- **Release 1.2.0 published** on GitHub (https://github.com/P4ssu/dune-market/releases/tag/v1.2.0), verified against the real GitHub API (check, verified download, no `config.toml` in the package). 212 tests pass.
+- **Bridge for 1.1.0 copies.** Added a row to the shared Supabase `releases` table: version 1.2.0, download link to the installer zip on the owner's Google Drive, note "Reinstall once with this new zip". Copies on 1.1.0 check that table, so they show an in-game notice and reinstall once; from 1.2.0 on, copies update themselves from GitHub. Copies older than 1.1.0 have no update check and must be told on Discord.
+- **Open:** friends reinstall once with the 1.2.0 zip; tell pre-1.1.0 users on Discord.
 
 ## 2026-10-19 (session 3)
 

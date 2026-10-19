@@ -11,15 +11,16 @@ Update this file when something gets done or the plan changes. History and reaso
 - Item search window (hotkey, default Ctrl+Shift+F, configurable): live results with grade, average, cheapest and age.
 - Self-updating program: GitHub releases are built by Actions on a version tag; running copies download, verify and install updates at the next start (tested end to end). Public repo https://github.com/P4ssu/dune-market.
 - Local-first sync with a shared Supabase table and a PyInstaller package for friends (129 MB zip).
+- Release 1.2.0 published on GitHub and verified; Supabase `releases` row points 1.1.0 copies to the 1.2.0 installer zip (212 tests pass).
 
 ## In progress
 
-- Owner: try sharing with one friend (two computers); the Supabase table and friends' zip are ready.
+- Friends reinstall once with the 1.2.0 zip (1.1.0 copies see an in-game notice); tell pre-1.1.0 users on Discord.
 - Owner: decide about Funcom's rules (nothing in the code touches the game process; permission is not officially confirmed).
 
 ## Planned
 
-- Real test of sharing with one friend (two computers).
 - Drop history tab (compare backpack contents between scans).
-- Per-grade price on the Sell tab for rows other than the selected one.
-- Auto-update or a version check for the friends' package.
+- Per-grade Sell prices for rows other than the selected one.
+- Support for a monitor other than the main one.
+- Optional Windows code signing.
