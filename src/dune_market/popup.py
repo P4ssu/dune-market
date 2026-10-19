@@ -10,12 +10,11 @@ from PIL import Image
 from dune_market.models import ItemStats, Word
 from dune_market.ocr import read_words
 from dune_market.parse_tooltip import find_tooltip
+from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
 
 log = logging.getLogger(__name__)
 
-_HEADER_BAND = 0.12  # top fraction of the frame holding the Exchange tab names
-_HEADER_X = (0.35, 0.65)  # ...and the centre part of it; the corners hold the character name and Solari balance
 _REGION_W, _REGION_H = 0.20, 0.25  # half-size of the crop around the cursor, as frame fractions
 _HEADER_READ_W = 0.30  # width of the second, header-only crop, as a frame fraction
 _LINE_HEIGHT = 28  # approximate popup line height in pixels, used to place it above the tooltip
@@ -60,6 +59,21 @@ def format_popup(name: str, stats: list[ItemStats], now: datetime) -> list[str]:
     return lines
 
 
+def select_stats(stats: list[ItemStats], grade: str) -> list[ItemStats]:
+    """The stats that fit the hovered item's grade: exact grade, else grade-unknown, else whatever exists."""
+    exact = [s for s in stats if s.key.grade == grade]
+    if exact:
+        return exact
+    unknown = [s for s in stats if s.key.grade == "unknown"]
+    return unknown or stats
+
+
+def _crop(frame: Image.Image, left: float, top: float, right: float, bottom: float) -> tuple[Image.Image, tuple[int, int]]:
+    width, height = frame.size
+    box = (max(0, int(left)), max(0, int(top)), min(width, int(right)), min(height, int(bottom)))
+    return frame.crop(box), (box[0], box[1])
+
+
 def hover_popup(
     frame: Image.Image | None,
     cursor: tuple[int, int],
@@ -71,31 +85,28 @@ def hover_popup(
     if frame is None:
         return None
     width, height = frame.size
+    if not (0 <= cursor[0] < width and 0 <= cursor[1] < height):
+        return None  # cursor on another monitor
 
-    # Exchange tabs list items with the same category-line pattern as tooltips,
-    # so stay quiet whenever an Exchange tab is open.
-    header_left = int(width * _HEADER_X[0])
-    header = read(frame.crop((header_left, 0, int(width * _HEADER_X[1]), int(height * _HEADER_BAND))), (header_left, 0))
-    if any("MYORDERS" in "".join(w.text.split()).upper() for w in header):
-        return None
-
-    left = max(0, int(cursor[0] - width * _REGION_W))
-    top = max(0, int(cursor[1] - height * _REGION_H))
-    right = min(width, int(cursor[0] + width * _REGION_W))
-    bottom = min(height, int(cursor[1] + height * _REGION_H))
-    hit = find_tooltip(read(frame.crop((left, top, right, bottom)), (left, top)), cursor)
+    # Pass 1: one crop around the cursor. Most hovers end here (no tooltip).
+    region, origin = _crop(frame, cursor[0] - width * _REGION_W, cursor[1] - height * _REGION_H,
+                           cursor[0] + width * _REGION_W, cursor[1] + height * _REGION_H)
+    hit = find_tooltip(read(region, origin), cursor)
     if hit is None:
         return None
 
-    # The first crop can cut the header text short, so read the header again
-    # with a crop that extends well past it.
-    left = max(0, int(hit.x) - 30)
-    top = max(0, int(hit.y) - 10)
-    right = min(width, int(hit.x + width * _HEADER_READ_W))
-    bottom = min(height, int(hit.y) + 90)
-    hit = find_tooltip(read(frame.crop((left, top, right, bottom)), (left, top)), (int(hit.x), int(hit.y))) or hit
+    # Exchange tabs list items with the same category-line pattern as tooltips, so stay quiet
+    # whenever an Exchange tab is open.
+    if exchange_tab_open(frame, read):
+        return None
 
-    lines = format_popup(hit.name, store.lookup(hit.name, hit.category, now), now)
+    # Pass 2: the first crop can cut the header text short and misses the tiny grade number,
+    # so read the header again with a tight crop that extends well past it.
+    tight, tight_origin = _crop(frame, hit.x - 30, hit.y - 10, hit.x + width * _HEADER_READ_W, hit.y + 90)
+    hit = find_tooltip(read(tight, tight_origin), (int(hit.x), int(hit.y))) or hit
+
+    stats = select_stats(store.lookup(hit.name, hit.category, now), hit.grade)
+    lines = format_popup(hit.name, stats, now)
     y = max(0, int(hit.y) - _LINE_HEIGHT * len(lines) - 24)
     return PopupData(lines, int(hit.x), y)
 
@@ -110,12 +121,14 @@ class HoverTracker:
         on_hide: Callable[[], None],
         still_seconds: float = 0.4,
         jitter_px: int = 8,
+        current_cursor: Callable[[], tuple[int, int]] | None = None,
     ):
         self._lookup = lookup
         self._on_show = on_show
         self._on_hide = on_hide
         self._still_seconds = still_seconds
         self._jitter_px = jitter_px
+        self._current_cursor = current_cursor
         self._anchor: tuple[int, int] | None = None
         self._still_since = 0.0
         self._handled = False
@@ -135,6 +148,13 @@ class HoverTracker:
             except Exception:
                 log.exception("hover lookup failed")
                 return
-            if popup:
+            if popup and not self._moved_away(cursor):
                 self._visible = True
                 self._on_show(popup)
+
+    def _moved_away(self, cursor: tuple[int, int]) -> bool:
+        """True if the cursor left while the lookup ran (a slow lookup must not flash a stale popup)."""
+        if self._current_cursor is None:
+            return False
+        now = self._current_cursor()
+        return max(abs(now[0] - cursor[0]), abs(now[1] - cursor[1])) > self._jitter_px

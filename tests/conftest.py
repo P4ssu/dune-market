@@ -29,3 +29,17 @@ def shot_words():
         return _cache[key]
 
     return load
+
+
+@pytest.fixture(scope="session")
+def shot_crop():
+    """OCR one rectangle of a screenshot, the way the hover popup re-reads a tooltip header."""
+
+    def load(name: str, box: tuple[int, int, int, int]):
+        path = SCREENSHOTS / f"{name}.png"
+        if not path.exists():
+            pytest.skip(f"missing screenshot {path.name}")
+        image = Image.open(path).convert("RGB").crop(box)
+        return read_words(image, (box[0], box[1]))
+
+    return load

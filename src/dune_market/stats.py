@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 from dune_market.models import ItemKey, ItemStats, Observation
+from dune_market.ocr import name_key
 
 STALE_AFTER = timedelta(hours=24)
 TREND_MIN_AGE = timedelta(hours=12)
@@ -12,8 +13,12 @@ LOW_OUTLIER_FACTOR = 5  # ...and so is one below 1/5 of it (a likely OCR misread
 SESSION_WINDOW = timedelta(minutes=30)  # buy scans this close together are one scroll through the list
 
 
+def _ident(key: ItemKey) -> tuple[str, str, str]:
+    return name_key(key.name), key.category, key.grade
+
+
 def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) -> ItemStats | None:
-    own = sorted((o for o in observations if o.key == key), key=lambda o: o.observed_at)
+    own = sorted((o for o in observations if _ident(o.key) == _ident(key)), key=lambda o: o.observed_at)
     if not own:
         return None
     sells = [o for o in own if o.kind == "sell"]
@@ -65,6 +70,6 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
 
 def stats_by_grade(observations: list[Observation], now: datetime) -> list[ItemStats]:
     """One ItemStats per item key (grade) in `observations`, newest first."""
-    keys = {o.key for o in observations}
-    stats = [s for s in (compute_stats(k, observations, now) for k in keys) if s]
+    keys = {_ident(o.key): o.key for o in observations}
+    stats = [s for s in (compute_stats(k, observations, now) for k in keys.values()) if s]
     return sorted(stats, key=lambda s: s.updated_at, reverse=True)

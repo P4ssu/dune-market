@@ -70,3 +70,12 @@ def test_overlay_window_shows_and_hides_offscreen():
     window.hide_popup()
     assert not window.isVisible()
     app.processEvents()
+
+
+def test_lookup_does_nothing_while_the_game_is_not_in_front():
+    from dune_market.overlay import make_lookup
+
+    grabbed = []
+    lookup = make_lookup(store=None, active=lambda: False, grab=lambda: grabbed.append(1))
+    assert lookup((100, 100)) is None
+    assert grabbed == []

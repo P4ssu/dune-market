@@ -9,7 +9,7 @@ from dune_market.scanner import Scanner, accept, observations_from_words
 from dune_market.store_sqlite import SqliteStore
 
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
-FABRIC = ItemKey("Atmospheric Filtered Fabric", "MISC - COMPONENTS", "unknown")
+FABRIC = ItemKey("Atmospheric Filtered Fabric", "MISC - COMPONENTS", "0")
 
 
 def sell_obs(avg, low=None):
@@ -23,8 +23,9 @@ def frame(brightness: int) -> Image.Image:
 def test_sell_screenshot_becomes_sell_observations(shot_words):
     observations = observations_from_words(shot_words("sell"), "Mari", NOW)
     assert len(observations) == 6
-    assert all(o.kind == "sell" and o.contributor == "Mari" and o.key.grade == "unknown" for o in observations)
-    fabric = next(o for o in observations if o.key == FABRIC)
+    assert all(o.kind == "sell" and o.contributor == "Mari" for o in observations)
+    fabric = next(o for o in observations if o.key == FABRIC)  # selected row, panel shows no badge: grade 0
+    assert all(o.key.grade == "unknown" for o in observations if o is not fabric)
     assert (fabric.avg, fabric.low) == (56359, 46000)
 
 
@@ -59,7 +60,7 @@ def test_guard_accepts_value_seen_twice(shot_words, tmp_path):
     store = SqliteStore(str(tmp_path / "p.db"))
     store.add([sell_obs(56_359, 46_000)])
     frames = iter([frame(10), frame(60)])
-    scanner = Scanner(store, "Mari", grab=lambda: next(frames), read=lambda image: words)
+    scanner = Scanner(store, "Mari", grab=lambda: next(frames), read=lambda image, offset=(0, 0): words)
 
     assert scanner.scan_once(NOW) == 5  # the other five rows; the odd value is held back
     assert store.latest_sell(FABRIC).avg == 56_359
@@ -89,7 +90,7 @@ def test_scan_once_survives_grab_error(tmp_path):
 def test_unchanged_frame_is_not_rescanned(shot_words, tmp_path):
     store = SqliteStore(str(tmp_path / "p.db"))
     words = shot_words("sell")
-    scanner = Scanner(store, "Mari", grab=lambda: frame(10), read=lambda image: words)
+    scanner = Scanner(store, "Mari", grab=lambda: frame(10), read=lambda image, offset=(0, 0): words)
     assert scanner.scan_once(NOW) == 6
     assert scanner.scan_once(NOW + timedelta(seconds=1)) == 0
 
@@ -97,3 +98,22 @@ def test_unchanged_frame_is_not_rescanned(shot_words, tmp_path):
 def test_guard_rejects_low_price_jump():
     assert accept(sell_obs(56_359, low=4_000), sell_obs(56_359, low=46_000)) is False
     assert accept(sell_obs(56_359, low=47_000), sell_obs(56_359, low=46_000)) is True
+
+
+def test_scanner_does_nothing_while_the_game_is_not_in_front(shot_words, tmp_path):
+    calls = []
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: frame(10),
+                      read=lambda image, offset=(0, 0): calls.append(1) or shot_words("sell"), active=lambda: False)
+    assert scanner.scan_once(NOW) == 0
+    assert calls == []
+
+
+def test_scanner_skips_the_list_ocr_outside_the_exchange(shot_words, tmp_path):
+    calls = []
+    inventory = shot_words("item hover")  # no MY ORDERS tab name in the header
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=iter([frame(10), frame(90)]).__next__,
+                      read=lambda image, offset=(0, 0): calls.append(1) or inventory)
+    assert scanner.scan_once(NOW) == 0
+    assert len(calls) == 1  # only the small header strip was read
+    assert scanner.scan_once(NOW + timedelta(seconds=0.1)) == 0
+    assert len(calls) == 1  # and the negative answer is remembered for a moment

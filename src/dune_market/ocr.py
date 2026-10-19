@@ -1,5 +1,6 @@
 """OCR wrapper that returns `Word` spans."""
 
+import os
 import re
 
 import numpy as np
@@ -15,7 +16,8 @@ def _get_engine():
     if _engine is None:
         from rapidocr_onnxruntime import RapidOCR
 
-        _engine = RapidOCR()
+        # More threads than this is slower, not faster: ~1.2 s instead of ~5 s per frame on a 24-core CPU.
+        _engine = RapidOCR(intra_op_num_threads=min(6, os.cpu_count() or 1), inter_op_num_threads=1)
     return _engine
 
 
@@ -79,8 +81,8 @@ _NAME_GAP = 60  # px; a wider gap on the same line starts a different column
 _NAME_LINE_TOLERANCE = 12  # px between line centres that still counts as one line
 
 
-def name_line(words: list[Word], first: Word) -> str:
-    """The full text of the line starting at `first`.
+def name_line_extent(words: list[Word], first: Word) -> tuple[str, float]:
+    """The full text of the line starting at `first`, and the x where it ends.
 
     The OCR engine sometimes splits a name into two spans ("Spice-infused
     Plastanium" + "Dust"); spans close to the end of the line belong to it.
@@ -101,4 +103,28 @@ def name_line(words: list[Word], first: Word) -> str:
             break
         parts.append(w.text)
         end = w.x + w.w
-    return " ".join(parts)
+    return " ".join(parts), end
+
+
+def name_line(words: list[Word], first: Word) -> str:
+    return name_line_extent(words, first)[0]
+
+
+def name_key(name: str) -> str:
+    """Spelling-independent key: the OCR drops spaces unpredictably ("Robeofthe Sisterhood")."""
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+_BADGE_RE = re.compile(r"^\d{1,2}$")
+_BADGE_REACH = 4  # the badge sits within this many category-line widths of the header's left edge
+
+
+def find_grade_badge(words: list[Word], cat: Word, line_end: float, line_centre: float) -> str:
+    """The grade number shown at the right end of a tooltip/panel header, or "0" when there is none."""
+    badges = [
+        w for w in words
+        if _BADGE_RE.match(w.text.strip())
+        and abs(w.y + w.h / 2 - line_centre) < 30
+        and line_end <= w.x < cat.x + _BADGE_REACH * cat.w
+    ]
+    return min(badges, key=lambda w: w.x).text.strip() if badges else "0"

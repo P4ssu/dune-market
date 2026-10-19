@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass
 
 from dune_market.models import Word
-from dune_market.ocr import name_line, normalize_category, normalize_name, parse_price
+from dune_market.ocr import find_grade_badge, name_line_extent, normalize_category, normalize_name, parse_price
 
 
 @dataclass(frozen=True)
@@ -15,6 +15,7 @@ class TooltipHit:
     y: float
     w: float
     h: float
+    grade: str = "0"  # the number at the right end of the header; no number means grade 0
 
 
 def find_tooltip(words: list[Word], cursor: tuple[int, int]) -> TooltipHit | None:
@@ -32,9 +33,11 @@ def find_tooltip(words: list[Word], cursor: tuple[int, int]) -> TooltipHit | Non
         if not below:
             continue
         name = min(below, key=lambda w: w.y)
+        text, line_end = name_line_extent(words, name)
+        grade = find_grade_badge(words, cat, line_end, name.y + name.h / 2)
         distance = math.hypot(cat.x + cat.w / 2 - cursor[0], cat.y + cat.h / 2 - cursor[1])
         if best is None or distance < best[0]:
-            best = (distance, TooltipHit(normalize_name(name_line(words, name)), category, cat.x, cat.y, cat.w, cat.h))
+            best = (distance, TooltipHit(normalize_name(text), category, cat.x, cat.y, cat.w, cat.h, grade))
     return None if best is None else best[1]
 
 

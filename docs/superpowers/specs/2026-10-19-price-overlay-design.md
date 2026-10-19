@@ -101,3 +101,9 @@ Grades: the owner confirmed that the same item can exist in different grades wit
 - Names shown in the popup identify friends; that is acceptable inside the group, since the owner chose to show the contributor.
 
 Tooltip finding (Task 5): the three hover screenshots show no grade marker in the tooltip (the only "Grade" text is the crafting component "Schematic Pattern Grade 1"). Until a grade source is found, the hover popup shows every known grade of the item.
+
+## Findings from the owner's first real-game run (2026-10-19)
+
+- The first `scan` run kept OCR-ing continuously at about 95% CPU, competing with the game (OCR with default thread count took about 5 s per frame instead of about 1.2 s). The overlay lookups were so slow that the cursor had left before the popup appeared. Fixes: OCR limited to 6 threads; scanner and hover lookups do nothing unless the game window is in front; the list is only OCR'd when the Exchange tab bar is visible; the scan reads only the list area (never the screen corners).
+- Grades: the tooltip header shows the grade as a number at its right end; no number means grade 0. The Buy tab's `GRADE:` filter label is stored with each listing (grades 0-5 seen). On the Sell tab only the selected row's grade is visible, in the detail panel title.
+- The OCR drops spaces unpredictably ("Robeofthe Sisterhood"), so items are matched by a spelling-independent key (lowercase letters and digits only).

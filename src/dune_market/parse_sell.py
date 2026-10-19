@@ -1,7 +1,7 @@
 """Parse the Exchange Sell tab (the player's backpack with AVG. and LOW prices)."""
 
 from dune_market.models import SellRow, Word
-from dune_market.ocr import name_line, normalize_category, normalize_name, parse_price
+from dune_market.ocr import find_grade_badge, name_key, name_line, name_line_extent, normalize_category, normalize_name, parse_price
 
 
 def _center(word: Word) -> float:
@@ -14,6 +14,23 @@ def _compact(text: str) -> str:
 
 def _find(words: list[Word], fragment: str) -> Word | None:
     return next((w for w in words if fragment in _compact(w.text)), None)
+
+
+def _read_panel(words: list[Word], right_edge: float) -> tuple[str | None, str | None, str | None]:
+    """Name, category and grade shown in the item detail panel (the selected row)."""
+    panel = [w for w in words if _center(w) >= right_edge]
+    for cat in sorted((w for w in panel if normalize_category(w.text)), key=lambda w: w.y):
+        below = [
+            w for w in panel
+            if 0 < w.y - cat.y < 60 and abs(w.x - cat.x) < 60
+            and normalize_category(w.text) is None and parse_price(w.text) is None
+        ]
+        if below:
+            first = min(below, key=lambda w: w.y)
+            text, line_end = name_line_extent(panel, first)
+            badge = find_grade_badge(panel, cat, line_end, first.y + first.h / 2)
+            return normalize_name(text), normalize_category(cat.text), badge
+    return None, None, None
 
 
 def parse_sell(words: list[Word]) -> list[SellRow]:
@@ -36,6 +53,8 @@ def parse_sell(words: list[Word]) -> list[SellRow]:
         (w for w in body if w.x < name_edge and normalize_category(w.text)),
         key=lambda w: w.y,
     )
+
+    panel_name, panel_category, panel_grade = _read_panel(words, right_edge)
 
     rows = []
     for i, cat in enumerate(categories):
@@ -63,10 +82,13 @@ def parse_sell(words: list[Word]) -> list[SellRow]:
 
         if "avg" not in values or "low" not in values:
             continue
+        category = normalize_category(cat.text)
+        selected = panel_name is not None and name_key(name) == name_key(panel_name) and category == panel_category
         rows.append(
             SellRow(
-                category=normalize_category(cat.text),
+                category=category,
                 name=name,
+                grade=panel_grade if selected else None,
                 quantity=values.get("quantity"),
                 avg_price=values["avg"],
                 low_price=values["low"],

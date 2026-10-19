@@ -34,6 +34,7 @@ class SellRow:
     quantity: int | None  # dim column the OCR often misses
     avg_price: int
     low_price: int
+    grade: str | None = None  # only known for the row selected in the detail panel
 
 
 @dataclass(frozen=True)
