@@ -35,7 +35,7 @@ from dune_market.search import render_search_html
 from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
 from dune_market.sync import SyncClient, start_sync_thread
-from dune_market.update import start_update_checks, update_toast_lines
+from dune_market.update import install_dir, read_pending, stage_update, start_update_checks, update_toast_lines
 
 log = logging.getLogger(__name__)
 
@@ -304,6 +304,7 @@ def run_overlay(
     contributor: str | None = None,
     remote: RemoteConfig | None = None,
     search_hotkey: str = "ctrl+shift+f",
+    auto_update: bool = True,
 ) -> None:
     """Show the hover popup; with a `contributor` name, also scan the Exchange and show in-game notices."""
     app = QApplication([])
@@ -378,19 +379,25 @@ def run_overlay(
         start_sync_thread(SyncClient(remote.url, remote.key, remote.world, store))
         sync_note = f" Sharing prices with friends (World {remote.world})."
 
-        def on_update(info) -> None:
-            print(f"\nA new version of Dune Market is available: {info.version} (you have {__version__}).")
-            if info.notes:
-                print(f"  What is new: {info.notes}")
-            if info.url:
-                print(f"  Download: {info.url}")
-            signals.notice.emit(update_toast_lines(info, __version__))
-
-        start_update_checks(remote.url, remote.key, __version__, on_update)
     hotkey = HotkeyListener(search_hotkey, signals.search.emit)
     hotkey.start()
     pretty = " + ".join(part.strip().capitalize() for part in search_hotkey.split("+"))
     search_note = f"Search prices: {pretty}" if hotkey.wait_ready(2.0) and hotkey.registered else f"Search hotkey {pretty} is taken by another program"
+
+    def on_update(info) -> None:
+        """A newer version exists: download it for the next start (packaged program) or just say so."""
+        home = install_dir()
+        downloaded = False
+        if auto_update and home and info.zip_url:
+            pending = read_pending(home)
+            downloaded = (pending is not None and pending[0] == info.version) or stage_update(info, home) is not None
+        print(f"\nA new version of Dune Market is available: {info.version} (you have {__version__}).")
+        if info.notes:
+            print(f"  What is new: {info.notes}")
+        print("  It installs automatically the next time you start Dune Market." if downloaded else f"  Get it here: {info.page_url}")
+        signals.notice.emit(update_toast_lines(info, __version__, downloaded))
+
+    start_update_checks(__version__, on_update)
     what = "scanning and price popups" if contributor else "price popups"
     QTimer.singleShot(1500, lambda: show_notice([f"Dune Market v{__version__}", f"Running: {what}", search_note], 5.0))
     print(f"Dune Market running ({what}).{sync_note or ' Prices stay on this computer only.'} {search_note}. Press Ctrl+C to stop.")

@@ -15,8 +15,8 @@ An unofficial, free Windows tool that reads the Exchange (market) screens and sh
 ## For players
 
 Get the installer zip from the person who invited you (it contains the settings for the shared database).
-Unzip it, run `Install.bat` and follow `README.txt`. New versions are announced in the game and installed
-automatically.
+Unzip it, run `Install.bat` and follow `README.txt`. New versions are downloaded and installed automatically
+(published as GitHub releases; see `docs/releasing.md`).
 
 ## For developers
 

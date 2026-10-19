@@ -1,6 +1,6 @@
 [project]
 name = "dune-market"
-version = "1.1.0"
+version = "1.2.0"
 description = "Live in-game Dune: Awakening Exchange price popup"
 requires-python = ">=3.11"
 dependencies = [

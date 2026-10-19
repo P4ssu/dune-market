@@ -21,6 +21,7 @@ class Config:
     contributor: str
     remote: RemoteConfig | None = None
     search_hotkey: str = "ctrl+shift+f"  # opens and closes the item search
+    auto_update: bool = True  # download new versions by itself and install them at the next start
 
 
 def load_config(path: str) -> Config:
@@ -36,4 +37,5 @@ def load_config(path: str) -> Config:
         contributor,
         RemoteConfig(remote["url"], remote["key"], remote.get("world", "Andromeda")) if remote else None,
         hotkey,
+        bool(data.get("auto_update", True)),
     )

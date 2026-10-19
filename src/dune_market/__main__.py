@@ -11,6 +11,7 @@ from dune_market import __version__
 from dune_market.capture import game_is_active
 from dune_market.config import load_config
 from dune_market.scanner import Scanner
+from dune_market.update import apply_pending_update, install_dir
 from dune_market.store_sqlite import SqliteStore
 
 
@@ -39,7 +40,7 @@ def _run(args: argparse.Namespace) -> None:
 
     config = load_config(args.config)
     run_overlay(SqliteStore(args.db), debug=args.debug, solid=args.solid, contributor=config.contributor, remote=config.remote,
-                search_hotkey=config.search_hotkey)
+                search_hotkey=config.search_hotkey, auto_update=config.auto_update)
 
 
 def _selftest(args: argparse.Namespace) -> None:
@@ -79,8 +80,12 @@ def main() -> None:
         command.add_argument("--solid", action="store_true", help="use opaque windows (if the popup is not visible over the game)")
 
     args = parser.parse_args()
+    command = args.command or "run"
+    home = install_dir()
+    if home and command in ("run", "overlay") and apply_pending_update(home, __version__):
+        return  # a downloaded update is being installed; the program restarts by itself
     try:
-        {"scan": _scan, "overlay": _overlay, "run": _run, "selftest": _selftest}[args.command or "run"](args)
+        {"scan": _scan, "overlay": _overlay, "run": _run, "selftest": _selftest}[command](args)
     except Exception as error:
         if not getattr(sys, "frozen", False):
             raise

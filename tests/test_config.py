@@ -48,3 +48,11 @@ def test_placeholder_name_from_the_friends_template_is_rejected(tmp_path):
         path.write_text(f'contributor = "{placeholder}"\n', encoding="utf-8")
         with pytest.raises(ValueError, match="your own name"):
             load_config(str(path))
+
+
+def test_auto_update_is_on_by_default_and_can_be_turned_off(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text('contributor = "Mari"\n', encoding="utf-8")
+    assert load_config(str(path)).auto_update is True
+    path.write_text('contributor = "Mari"\nauto_update = false\n', encoding="utf-8")
+    assert load_config(str(path)).auto_update is False
