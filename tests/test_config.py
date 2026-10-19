@@ -40,3 +40,10 @@ def test_selftest_command_runs(capsys):
 
     _selftest(argparse.Namespace())
     assert "Self-test OK" in capsys.readouterr().out
+
+
+def test_placeholder_name_from_the_friends_template_is_rejected(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text('contributor = "KIRJUTA-SIIA-OMA-NIMI"\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="your own name"):
+        load_config(str(path))

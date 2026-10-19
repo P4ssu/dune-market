@@ -76,7 +76,16 @@ def main() -> None:
         command.add_argument("--solid", action="store_true", help="use opaque windows (if the popup is not visible over the game)")
 
     args = parser.parse_args()
-    {"scan": _scan, "overlay": _overlay, "run": _run, "selftest": _selftest}[args.command or "run"](args)
+    try:
+        {"scan": _scan, "overlay": _overlay, "run": _run, "selftest": _selftest}[args.command or "run"](args)
+    except Exception as error:
+        if not getattr(sys, "frozen", False):
+            raise
+        # A double-clicked .exe closes its window at once; keep the message readable.
+        print(f"
+ERROR: {error}")
+        input("Press Enter to close this window.")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
