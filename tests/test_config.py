@@ -31,3 +31,12 @@ def test_remote_world_defaults_to_andromeda_and_can_be_set(tmp_path):
     assert load_config(str(path)).remote.world == "Andromeda"
     path.write_text('contributor = "Mari"\n[remote]\nurl = "https://x.example"\nkey = "k"\nworld = "Orion"\n', encoding="utf-8")
     assert load_config(str(path)).remote.world == "Orion"
+
+
+def test_selftest_command_runs(capsys):
+    import argparse
+
+    from dune_market.__main__ import _selftest
+
+    _selftest(argparse.Namespace())
+    assert "Self-test OK" in capsys.readouterr().out

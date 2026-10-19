@@ -1,0 +1,9 @@
+# Dune Market seadistus. Muuda ainult allolevat nime (jutumärkide vahel) ja salvesta.
+# See nimi ilmub popupis teistele: "Updated 2 h ago by <sinu nimi>".
+contributor = "KIRJUTA-SIIA-OMA-NIMI"
+
+# Jagatud hinnaandmebaas (ära muuda).
+[remote]
+url = "{{URL}}"
+key = "{{KEY}}"
+world = "{{WORLD}}"
