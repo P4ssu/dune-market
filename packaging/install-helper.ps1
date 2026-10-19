@@ -24,6 +24,7 @@ $shell = New-Object -ComObject WScript.Shell
 $link = $shell.CreateShortcut((Join-Path $DesktopDir "Dune Market.lnk"))
 $link.TargetPath = Join-Path $Target "DuneMarket.exe"
 $link.WorkingDirectory = $Target
+$link.IconLocation = (Join-Path $Target "DuneMarket.exe") + ",0"
 $link.Description = "Dune Market price overlay"
 $link.Save()
 Write-Host "Desktop shortcut created."

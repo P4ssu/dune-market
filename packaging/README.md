@@ -4,7 +4,7 @@
 2. Build the program folder (about 300 MB, Python not needed on the friends' computers):
 
    ```
-   .venv\Scripts\python -m PyInstaller --noconfirm --clean --onedir --name DuneMarket --console --paths src ^
+   .venv\Scripts\python -m PyInstaller --noconfirm --clean --onedir --name DuneMarket --console --icon packaging\dune-market.ico --paths src ^
      --collect-all rapidocr_onnxruntime --hidden-import PyQt6.sip --exclude-module tkinter ^
      --exclude-module matplotlib --exclude-module pytest packaging\launch.py
    ```
