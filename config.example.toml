@@ -1,0 +1,8 @@
+# Copy to config.toml and fill in.
+# The name shown in the popup next to prices you scanned.
+contributor = "YourName"
+
+# Shared database (added later, after the Funcom permission check):
+# [remote]
+# url = "https://your-project.supabase.co"
+# key = "shared-key"
