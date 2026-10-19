@@ -24,7 +24,8 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}".TrimStart("v")
-          $version = python -c "import re; print(re.search(r'__version__ = \"(.+?)\"', open('src/dune_market/__init__.py').read()).group(1))"
+          $text = Get-Content src/dune_market/__init__.py -Raw
+          $version = [regex]::Match($text, '__version__ = "(.+?)"').Groups[1].Value
           if ($tag -ne $version) { throw "Tag v$tag does not match __version__ $version in src/dune_market/__init__.py" }
 
       - name: Install
