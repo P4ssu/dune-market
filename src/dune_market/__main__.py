@@ -20,7 +20,7 @@ def _scan(args: argparse.Namespace) -> None:
             stored = scanner.scan_once(datetime.now(timezone.utc))
             if stored:
                 print(f"Read {stored} rows, {scanner.last_new} new items. Items this session: {scanner.session_total}")
-            time.sleep(0.1)
+            time.sleep(scanner.idle_delay)
     except KeyboardInterrupt:
         pass
 

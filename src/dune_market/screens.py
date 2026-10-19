@@ -1,9 +1,9 @@
 """Tell which Exchange tab (if any) is on screen, from header text."""
 
-from collections.abc import Callable
-
+import numpy as np
 from PIL import Image
 
+from dune_market.banner import gold_mask
 from dune_market.models import Screen, Word
 
 
@@ -27,13 +27,17 @@ def classify(words: list[Word]) -> Screen:
     return Screen.OTHER
 
 
-HEADER_BAND = 0.12  # top fraction of the frame holding the Exchange tab names
-HEADER_X = (0.35, 0.65)  # ...and the centre part of it; the corners hold the character name and Solari balance
+# The Exchange tab bar has a Q and an E key box (gold squares) at fixed spots; the inventory bar and
+# every other screen have them elsewhere or not at all. Fractions of the frame (left, top, right, bottom).
+_KEY_BOXES = ((0.368, 0.068, 0.402, 0.116), (0.598, 0.068, 0.632, 0.116))
+_MIN_GOLD = 0.12  # measured: Exchange 0.18-0.19, inventory 0.00-0.07, other screens 0.00
 
 
-def exchange_tab_open(frame: Image.Image, read: Callable[[Image.Image, tuple[int, int]], list[Word]]) -> bool:
-    """True when the Exchange tab bar (BUY / SELL / MY ORDERS) is on screen; reads only a small strip."""
+def exchange_tab_open(frame: Image.Image) -> bool:
+    """True when the Exchange tab bar (BUY / SELL / MY ORDERS) is on screen. Pixels only: about a millisecond."""
     width, height = frame.size
-    left = int(width * HEADER_X[0])
-    strip = frame.crop((left, 0, int(width * HEADER_X[1]), int(height * HEADER_BAND)))
-    return any("MYORDERS" in _compact(w.text) for w in read(strip, (left, 0)))
+    for left, top, right, bottom in _KEY_BOXES:
+        box = np.asarray(frame.crop((int(width * left), int(height * top), int(width * right), int(height * bottom))))
+        if box.size == 0 or gold_mask(box).mean() < _MIN_GOLD:
+            return False
+    return True

@@ -23,7 +23,7 @@ class Banner:
     h: int
 
 
-def _gold(pixels: np.ndarray) -> np.ndarray:
+def gold_mask(pixels: np.ndarray) -> np.ndarray:
     r, g, b = (pixels[..., i].astype(np.int16) for i in range(3))
     return (r > 110) & (r - b > 40) & (r >= g) & (g - b > 15)
 
@@ -46,7 +46,7 @@ def find_banner(frame: Image.Image, cursor: tuple[int, int]) -> Banner | None:
     right, bottom = width, min(height, int(cursor[1] + height * _SEARCH_H))
     if bottom <= top:
         return None
-    runs = _runs(_gold(np.asarray(frame.crop((left, top, right, bottom)))), int(width * _MIN_LINE))
+    runs = _runs(gold_mask(np.asarray(frame.crop((left, top, right, bottom)))), int(width * _MIN_LINE))
 
     best = None
     for y1, x1, n1 in runs:

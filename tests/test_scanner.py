@@ -60,7 +60,7 @@ def test_guard_accepts_value_seen_twice(shot_words, tmp_path):
     store = SqliteStore(str(tmp_path / "p.db"))
     store.add([sell_obs(56_359, 46_000)])
     frames = iter([frame(10), frame(60)])
-    scanner = Scanner(store, "Mari", grab=lambda: next(frames), read=lambda image, offset=(0, 0): words)
+    scanner = Scanner(store, "Mari", exchange_open=lambda f: True, grab=lambda: next(frames), read=lambda image, offset=(0, 0): words)
 
     assert scanner.scan_once(NOW) == 5  # the other five rows; the odd value is held back
     assert store.latest_sell(FABRIC).avg == 56_359
@@ -70,12 +70,12 @@ def test_guard_accepts_value_seen_twice(shot_words, tmp_path):
 
 def test_scan_once_with_black_frame_stores_nothing(tmp_path):
     store = SqliteStore(str(tmp_path / "p.db"))
-    scanner = Scanner(store, "Mari", grab=lambda: Image.new("RGB", (640, 400)))
+    scanner = Scanner(store, "Mari", exchange_open=lambda f: True, grab=lambda: Image.new("RGB", (640, 400)))
     assert scanner.scan_once(NOW) == 0
 
 
 def test_scan_once_when_grab_returns_none(tmp_path):
-    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: None)
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: None)
     assert scanner.scan_once(NOW) == 0
 
 
@@ -83,14 +83,14 @@ def test_scan_once_survives_grab_error(tmp_path):
     def broken():
         raise OSError("no display")
 
-    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=broken)
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=broken)
     assert scanner.scan_once(NOW) == 0
 
 
 def test_unchanged_frame_is_not_rescanned(shot_words, tmp_path):
     store = SqliteStore(str(tmp_path / "p.db"))
     words = shot_words("sell")
-    scanner = Scanner(store, "Mari", grab=lambda: frame(10), read=lambda image, offset=(0, 0): words)
+    scanner = Scanner(store, "Mari", exchange_open=lambda f: True, grab=lambda: frame(10), read=lambda image, offset=(0, 0): words)
     assert scanner.scan_once(NOW) == 6
     assert scanner.scan_once(NOW + timedelta(seconds=1)) == 0
 
@@ -102,26 +102,33 @@ def test_guard_rejects_low_price_jump():
 
 def test_scanner_does_nothing_while_the_game_is_not_in_front(shot_words, tmp_path):
     calls = []
-    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: frame(10),
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: frame(10),
                       read=lambda image, offset=(0, 0): calls.append(1) or shot_words("sell"), active=lambda: False)
     assert scanner.scan_once(NOW) == 0
     assert calls == []
 
 
-def test_scanner_skips_the_list_ocr_outside_the_exchange(shot_words, tmp_path):
+def test_scanner_does_no_ocr_outside_the_exchange(tmp_path):
     calls = []
-    inventory = shot_words("item hover")  # no MY ORDERS tab name in the header
     scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=iter([frame(10), frame(90)]).__next__,
-                      read=lambda image, offset=(0, 0): calls.append(1) or inventory)
+                      read=lambda image, offset=(0, 0), scale=1: calls.append(1) or [])
     assert scanner.scan_once(NOW) == 0
-    assert len(calls) == 1  # only the small header strip was read
     assert scanner.scan_once(NOW + timedelta(seconds=0.1)) == 0
-    assert len(calls) == 1  # and the negative answer is remembered for a moment
+    assert calls == []  # the pixel check says "no Exchange bar", so nothing is OCR'd
+
+
+def test_scan_pace_is_slow_until_the_exchange_is_seen(shot_image, tmp_path):
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=iter([frame(10), shot_image("sell")]).__next__,
+                      read=lambda image, offset=(0, 0), scale=1: [])
+    scanner.scan_once(NOW)
+    assert scanner.idle_delay >= 0.4  # not in the Exchange: check rarely
+    scanner.scan_once(NOW + timedelta(seconds=1))
+    assert scanner.idle_delay <= 0.15  # Exchange open: scan quickly
 
 
 def test_scanner_describes_what_it_just_read(shot_words, tmp_path):
     big = Image.new("RGB", (2560, 1600), (10, 10, 10))
-    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: big,
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: big,
                       read=lambda image, offset=(0, 0), scale=1: shot_words("sell"))
     scanner.scan_once(NOW)
     assert scanner.last_label == "Sell tab"
@@ -130,7 +137,7 @@ def test_scanner_describes_what_it_just_read(shot_words, tmp_path):
 
 def test_scanner_label_for_buy_tab_names_category_and_grade(shot_words, tmp_path):
     big = Image.new("RGB", (2560, 1600), (10, 10, 10))
-    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: big,
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: big,
                       read=lambda image, offset=(0, 0), scale=1: shot_words("buy tab"))
     scanner.scan_once(NOW)
     assert scanner.last_label == "Buy tab · GARMENTS - LIGHTARMOR · all grades"

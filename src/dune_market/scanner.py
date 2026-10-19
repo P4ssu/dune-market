@@ -20,7 +20,9 @@ log = logging.getLogger(__name__)
 JUMP_FACTOR = 5  # an average that changes by more than this factor is held back as a likely misread
 _CHANGE_THRESHOLD = 1.0  # mean grey-level difference between thumbnails that counts as "new screen"
 _THUMB_SIZE = (64, 40)
-_NOT_EXCHANGE_RECHECK_S = 1.0  # after "no Exchange tab", look again no sooner than this
+_SCAN_DELAY_S = 0.1  # between scans while the Exchange is open
+_IDLE_DELAY_S = 0.5  # between checks while it is not
+_EXCHANGE_RECENT_S = 3.0  # how long after the last Exchange frame the quick pace is kept
 # Frame fractions (left, top, right, bottom). The list area is read on every scan; the top strip with
 # the character name and Solari balance and the bottom bar are never read (also faster). On the Sell
 # tab the detail panel title (name and grade badge of the selected row) is read in a second, tight crop.
@@ -76,13 +78,15 @@ class Scanner:
         grab: Callable[[], Image.Image | None] = grab_frame,
         read: Callable[[Image.Image, tuple[int, int]], list[Word]] = read_words,
         active: Callable[[], bool] = lambda: True,
+        exchange_open: Callable[[Image.Image], bool] = exchange_tab_open,
     ):
         self._store = store
         self._contributor = contributor
         self._grab = grab
         self._read = read
         self._active = active
-        self._recheck_at = 0.0
+        self._exchange_open = exchange_open
+        self._exchange_seen_at = float("-inf")
         self._last_thumb: Image.Image | None = None
         self._held: dict[ItemKey, tuple[int | None, int | None]] = {}
         self._seen: set[tuple[str, str, str]] = set()
@@ -90,6 +94,11 @@ class Scanner:
         self.session_total = 0  # distinct items seen in this session
         self.last_label = ""  # what the last scan read, e.g. "Buy tab · GARMENTS - LIGHTARMOR · grade 3"
         self.last_rows = 0
+
+    @property
+    def idle_delay(self) -> float:
+        """Seconds to wait between scans: quick while the Exchange is open, relaxed otherwise."""
+        return _SCAN_DELAY_S if time.monotonic() - self._exchange_seen_at < _EXCHANGE_RECENT_S else _IDLE_DELAY_S
 
     def _changed(self, frame: Image.Image) -> bool:
         thumb = frame.convert("L").resize(_THUMB_SIZE)
@@ -106,12 +115,10 @@ class Scanner:
             frame = self._grab()
             if frame is None or not self._changed(frame):
                 return 0
-            # Reading the whole list costs about a second of CPU, so first look at the small tab bar strip.
-            if time.monotonic() < self._recheck_at:
+            # Reading the list costs about a second of CPU, so first look at the tab bar's key boxes (pixels only).
+            if not self._exchange_open(frame):
                 return 0
-            if not exchange_tab_open(frame, self._read):
-                self._recheck_at = time.monotonic() + _NOT_EXCHANGE_RECHECK_S
-                return 0
+            self._exchange_seen_at = time.monotonic()
             width, height = frame.size
             left, top = int(width * SCAN_REGION[0]), int(height * SCAN_REGION[1])
             region = frame.crop((left, top, int(width * SCAN_REGION[2]), int(height * SCAN_REGION[3])))

@@ -91,15 +91,13 @@ def test_scanner_reads_only_the_list_region_and_reports_progress(shot_words, tmp
         return words
 
     big = Image.new("RGB", (2560, 1600), (10, 10, 10))
-    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", grab=lambda: big, read=read)
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: big, read=read)
     scanner.scan_once(NOW)
-    assert len(calls) == 3  # tab bar strip, the list, then the detail panel title on the Sell tab
-    (sx, sy), (sw, sh) = calls[0]
-    assert sx > 300 and sx + sw < 2560 - 300 and sy == 0  # strip in the centre: no character name or Solari balance
-    (x, y), (w, h) = calls[1]
+    assert len(calls) == 2  # the list, then the detail panel title on the Sell tab
+    (x, y), (w, h) = calls[0]
     assert x > 0 and y > 150 and w < 2560 and y + h < 1500  # the list, without the corners
     assert (scanner.last_new, scanner.session_total) == (6, 6)
-    (px, py), (pw, ph) = calls[2]
+    (px, py), (pw, ph) = calls[1]
     assert px > 0.6 * 2560 and py < 0.25 * 1600 and ph < 200  # a tight crop of the panel title
 
 

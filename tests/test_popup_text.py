@@ -131,8 +131,8 @@ def test_hover_popup_real_ocr_reads_the_full_name(tmp_path):
     assert "Avg price: 5,000" in popup.lines
 
 
-def test_hover_popup_header_check_reads_only_the_centre_tabs(shot_words, shot_image, tmp_path):
-    """The first OCR call must not include the screen corners (character name, Solari balance)."""
+def test_hover_popup_ocrs_only_small_crops(shot_words, shot_image, tmp_path):
+    """Only the tooltip banner is OCR'd, never a large area (so never the character name or Solari balance)."""
     calls = []
     inner = fake_reader(shot_words("item hover"))
 
@@ -141,11 +141,9 @@ def test_hover_popup_header_check_reads_only_the_centre_tabs(shot_words, shot_im
         return inner(image, offset, scale)
 
     image = shot_image("item hover")
-    hover_popup(image, (842, 927), dust_store(tmp_path), NOW, recording)
-    header_calls = [(x, w) for (x, y), (w, h) in calls if y == 0]
-    assert header_calls
-    assert all(x > 300 and x + w < image.width - 300 for x, w in header_calls)
-    assert all(w * h < 0.15 * image.width * image.height for _, (w, h) in calls)  # only small crops are OCR'd
+    assert hover_popup(image, (842, 927), dust_store(tmp_path), NOW, recording) is not None
+    assert calls
+    assert all(w * h < 0.03 * image.width * image.height for _, (w, h) in calls)
 
 
 def test_hover_popup_skips_the_tab_bar_ocr_when_told_the_exchange_is_closed(shot_words, shot_image, tmp_path):

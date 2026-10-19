@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import QApplication, QLabel
 
 from dune_market.banner import find_banner
 from dune_market.capture import cursor_position, game_is_active, grab_frame
-from dune_market.ocr import read_words
 from dune_market.popup import (
     HoverTracker,
     PopupData,
@@ -150,7 +149,7 @@ def make_lookup(
     lookup_fn: Callable | None = None,
 ) -> Callable[[tuple[int, int]], PopupData | None]:
     """The lookup the hover loop runs; it does nothing unless the game is in front."""
-    check = exchange_check or (lambda frame: exchange_tab_open(frame, read_words))
+    check = exchange_check or exchange_tab_open
     remembered: list = [False, float("-inf")]
 
     def exchange_open(frame: Image.Image) -> bool:
@@ -258,7 +257,7 @@ def run_overlay(
                         )
                 except Exception:
                     log.exception("scan loop error")
-                time.sleep(0.1)
+                time.sleep(scanner.idle_delay)
 
         threading.Thread(target=scan_loop, daemon=True).start()
 

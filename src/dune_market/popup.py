@@ -105,7 +105,7 @@ def hover_popup(
 
     # Exchange tabs have banners and category lines too (the detail panel), so stay quiet
     # whenever an Exchange tab is open.
-    if exchange_open(frame) if exchange_open else exchange_tab_open(frame, read):
+    if exchange_open(frame) if exchange_open else exchange_tab_open(frame):
         return None
 
     margin = 6
