@@ -147,13 +147,18 @@ def find_grade_badge(words: list[Word], cat: Word, line_end: float, line_centre:
     return min(badges, key=lambda w: w.x).text.strip() if badges else "0"
 
 
-def read_header(read: Callable[..., list[Word]], crop: Image.Image, origin: tuple[int, int]) -> list[Word]:
+def read_header(
+    read: Callable[..., list[Word]], crop: Image.Image, origin: tuple[int, int], badge_fraction: float = 0.3
+) -> list[Word]:
     """OCR a tooltip/panel header crop: normal-size text plus the tiny grade digit.
 
-    Enlarging the crop makes the grade digit readable but garbles letter case ("COmPONENTS"), so the
-    text comes from the plain read and only digit-only spans are taken from the enlarged read.
+    Enlarging makes the grade digit readable but garbles letter case ("COmPONENTS"), so the text
+    comes from the plain read and only digit-only spans are taken from an enlarged read of the
+    right end of the header, where the badge sits (a small crop, so it is quick).
     """
     words = read(crop, origin)
     if any(_BADGE_RE.match(w.text.strip()) for w in words):
         return words
-    return words + [w for w in read(crop, origin, scale=2) if _BADGE_RE.match(w.text.strip())]
+    left = int(crop.width * (1 - badge_fraction))
+    part = crop.crop((left, 0, crop.width, crop.height))
+    return words + [w for w in read(part, (origin[0] + left, origin[1]), scale=2) if _BADGE_RE.match(w.text.strip())]

@@ -30,6 +30,7 @@ class PopupData:
     lines: list[str]
     x: int
     y: int
+    anchor: tuple[int, int, int, int] | None = None  # the tooltip banner (x, y, w, h) the popup is built for
 
 
 def _age(updated_at: datetime, now: datetime) -> str:
@@ -86,6 +87,7 @@ def hover_popup(
     now: datetime,
     read: Callable[..., list[Word]] = read_words,
     exchange_open: Callable[[Image.Image], bool] | None = None,
+    header_cache: dict | None = None,
 ) -> PopupData | None:
     """The popup for the inventory tooltip under the cursor, or None.
 
@@ -109,27 +111,43 @@ def hover_popup(
     margin = 6
     crop, origin = _crop(frame, banner.x - margin, banner.y - margin,
                          banner.x + banner.w + margin, banner.y + banner.h + margin)
-    hit = find_tooltip(read_header(read, crop, origin), cursor)
+    # The same item draws the same pixels, so what was read from them once is remembered.
+    key = hash(crop.tobytes())
+    hit = header_cache.get(key) if header_cache is not None else None
     if hit is None:
-        return None
+        hit = find_tooltip(read_header(read, crop, origin), cursor)
+        if hit is None:
+            return None
+        if header_cache is not None:
+            if len(header_cache) >= 512:
+                header_cache.clear()
+            header_cache[key] = hit
 
     stats = select_stats(store.lookup(hit.name, hit.category, now), hit.grade)
     lines = format_popup(hit.name, stats, now)
     y = max(0, banner.y - _LINE_HEIGHT * len(lines) - 24)
-    return PopupData(lines, banner.x, y)
+    return PopupData(lines, banner.x, y, anchor=(banner.x, banner.y, banner.w, banner.h))
 
 
 class HoverTracker:
-    """Fires `lookup` once when the cursor has rested, and hides the popup when it moves."""
+    """Decides when to look up and when to show or hide the popup.
+
+    After the cursor rests for a moment it keeps looking for a tooltip for a couple of seconds (the
+    game shows tooltips a little late). Once a popup is up it stays while the same tooltip is under
+    the cursor (`still_visible`), so small mouse movements on the item do not hide it.
+    """
 
     def __init__(
         self,
         lookup: Callable[[tuple[int, int]], PopupData | None],
         on_show: Callable[[PopupData], None],
         on_hide: Callable[[], None],
-        still_seconds: float = 0.25,
+        still_seconds: float = 0.1,
         jitter_px: int = 8,
         current_cursor: Callable[[], tuple[int, int]] | None = None,
+        still_visible: Callable[[PopupData, tuple[int, int]], bool] | None = None,
+        retry_seconds: float = 0.15,
+        give_up_seconds: float = 2.0,
     ):
         self._lookup = lookup
         self._on_show = on_show
@@ -137,28 +155,58 @@ class HoverTracker:
         self._still_seconds = still_seconds
         self._jitter_px = jitter_px
         self._current_cursor = current_cursor
+        self._still_visible = still_visible
+        self._retry_seconds = retry_seconds
+        self._give_up_seconds = give_up_seconds
         self._anchor: tuple[int, int] | None = None
-        self._still_since = 0.0
-        self._handled = False
-        self._visible = False
+        self._next_try: float | None = None
+        self._give_up_at = 0.0
+        self._popup: PopupData | None = None
+
+    def _moved(self, cursor: tuple[int, int]) -> bool:
+        a = self._anchor
+        return a is None or max(abs(cursor[0] - a[0]), abs(cursor[1] - a[1])) > self._jitter_px
 
     def tick(self, cursor: tuple[int, int], t: float) -> None:
-        moved = self._anchor is None or max(abs(cursor[0] - self._anchor[0]), abs(cursor[1] - self._anchor[1])) > self._jitter_px
-        if moved:
-            self._anchor, self._still_since, self._handled = cursor, t, False
-            if self._visible:
-                self._visible = False
-                self._on_hide()
-        elif not self._handled and t - self._still_since >= self._still_seconds:
-            self._handled = True
-            try:
-                popup = self._lookup(cursor)
-            except Exception:
-                log.exception("hover lookup failed")
+        moved = self._moved(cursor)
+        if self._popup is not None:
+            if not moved:
                 return
-            if popup and not self._moved_away(cursor):
-                self._visible = True
-                self._on_show(popup)
+            self._anchor = cursor
+            if self._still_visible and self._safe_still_visible(cursor):
+                return  # the same tooltip is still there: keep the popup
+            self._popup = None
+            self._on_hide()
+            self._start_waiting(t)
+            return
+        if moved:
+            self._anchor = cursor
+            self._start_waiting(t)
+        elif self._next_try is not None and self._next_try <= t <= self._give_up_at:
+            self._try_lookup(cursor, t)
+
+    def _start_waiting(self, t: float) -> None:
+        self._next_try = t + self._still_seconds
+        self._give_up_at = t + self._still_seconds + self._give_up_seconds
+
+    def _safe_still_visible(self, cursor: tuple[int, int]) -> bool:
+        try:
+            return bool(self._still_visible(self._popup, cursor))
+        except Exception:
+            log.exception("tooltip check failed")
+            return False
+
+    def _try_lookup(self, cursor: tuple[int, int], t: float) -> None:
+        self._next_try = t + self._retry_seconds
+        try:
+            popup = self._lookup(cursor)
+        except Exception:
+            log.exception("hover lookup failed")
+            return
+        if popup and not self._moved_away(cursor):
+            self._popup = popup
+            self._next_try = None
+            self._on_show(popup)
 
     def _moved_away(self, cursor: tuple[int, int]) -> bool:
         """True if the cursor left while the lookup ran (a slow lookup must not flash a stale popup)."""

@@ -17,6 +17,7 @@ from PyQt6.QtCore import QObject, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QApplication, QLabel
 
+from dune_market.banner import find_banner
 from dune_market.capture import cursor_position, game_is_active, grab_frame
 from dune_market.ocr import read_words
 from dune_market.popup import (
@@ -33,7 +34,7 @@ from dune_market.store import PriceStore
 
 log = logging.getLogger(__name__)
 
-_EXCHANGE_CHECK_TTL_S = 1.5  # the Exchange tab bar rarely changes, so a hover reuses the last answer
+_EXCHANGE_CHECK_TTL_S = 3.0  # the Exchange tab bar rarely changes, so a hover reuses the last answer
 
 
 class PopupWindow(QLabel):
@@ -75,24 +76,49 @@ class PopupWindow(QLabel):
         painter.end()
         super().paintEvent(event)
 
-    def show_html(self, html: str, x: int, y: int, centered: bool = False) -> None:
-        self.setText(html)
-        self.adjustSize()
+    def _place(self, left: int, top: int) -> None:
+        """Move to (left, top) in Qt (logical) pixels, kept on screen, and show without taking focus."""
         screen = QGuiApplication.primaryScreen()
-        ratio = screen.devicePixelRatio() if screen else 1.0
-        left, top = int(x / ratio), int(y / ratio)  # frame pixels are physical; Qt positions are device independent
         if screen:
             area = screen.geometry()
-            if centered:
-                left = area.x() + (area.width() - self.width()) // 2
             left = max(area.x(), min(left, area.x() + area.width() - self.width()))
             top = max(area.y(), min(top, area.y() + area.height() - self.height()))
         self.move(left, top)
         self.show()
         self._raise_to_top()
 
+    @staticmethod
+    def _ratio() -> float:
+        screen = QGuiApplication.primaryScreen()
+        return screen.devicePixelRatio() if screen else 1.0
+
+    def show_html(self, html: str, x: int, y: int, centered: bool = False) -> None:
+        """Show rich text at frame pixel (x, y), or horizontally centred on the screen."""
+        self.setText(html)
+        self.adjustSize()
+        left, top = int(x / self._ratio()), int(y / self._ratio())  # frame pixels are physical
+        screen = QGuiApplication.primaryScreen()
+        if centered and screen:
+            left = screen.geometry().x() + (screen.geometry().width() - self.width()) // 2
+        self._place(left, top)
+
     def show_popup(self, popup: PopupData) -> None:
-        self.show_html(render_html(popup.lines), popup.x, popup.y)
+        """Show above the tooltip banner (never over its text); beside it if there is no room above."""
+        self.setText(render_html(popup.lines))
+        self.adjustSize()
+        ratio = self._ratio()
+        if popup.anchor is None:
+            self._place(int(popup.x / ratio), int(popup.y / ratio))
+            return
+        ax, ay, aw, ah = (int(v / ratio) for v in popup.anchor)
+        gap = 10
+        left, top = ax, ay - self.height() - gap
+        if top < 0:
+            left, top = ax + aw + gap, ay
+            screen = QGuiApplication.primaryScreen()
+            if screen and left + self.width() > screen.geometry().width():
+                left = ax - self.width() - gap
+        self._place(left, top)
 
     def hide_popup(self) -> None:
         self.hide()
@@ -132,8 +158,10 @@ def make_lookup(
             remembered[:] = [check(frame), clock()]
         return remembered[0]
 
+    header_cache: dict = {}
+
     def default_lookup(frame, cursor, exchange):
-        return hover_popup(frame, cursor, store, datetime.now(timezone.utc), exchange_open=exchange)
+        return hover_popup(frame, cursor, store, datetime.now(timezone.utc), exchange_open=exchange, header_cache=header_cache)
 
     run = lookup_fn or default_lookup
 
@@ -152,6 +180,18 @@ def make_lookup(
                 frame.save("debug-last-frame.png")  # the screen the lookup found nothing on
         return popup
 
+    def still_visible(popup: PopupData, cursor: tuple[int, int]) -> bool:
+        """True while the tooltip the popup was built for is still drawn where it was."""
+        if not active() or popup.anchor is None:
+            return False
+        frame = grab()
+        banner = find_banner(frame, cursor) if frame is not None else None
+        if banner is None:
+            return False
+        ax, ay, aw, _ = popup.anchor
+        return abs(banner.x - ax) <= 6 and abs(banner.y - ay) <= 6 and abs(banner.w - aw) <= 10
+
+    lookup.still_visible = still_visible
     return lookup
 
 
@@ -186,11 +226,13 @@ def run_overlay(
         signals.show.connect(lambda popup: log.info("popup shown at (%s, %s)", popup.x, popup.y))
         signals.hide.connect(lambda: log.info("popup hidden"))
 
+    lookup = make_lookup(store, debug=debug)
     tracker = HoverTracker(
-        lookup=make_lookup(store, debug=debug),
+        lookup=lookup,
         on_show=signals.show.emit,
         on_hide=signals.hide.emit,
         current_cursor=cursor_position,
+        still_visible=lookup.still_visible,
     )
 
     def hover_loop() -> None:
@@ -200,7 +242,7 @@ def run_overlay(
                     tracker.tick(cursor_position(), time.monotonic())
             except Exception:
                 log.exception("hover loop error")
-            time.sleep(0.1)
+            time.sleep(0.05)
 
     threading.Thread(target=hover_loop, daemon=True).start()
 

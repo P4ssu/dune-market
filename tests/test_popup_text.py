@@ -159,3 +159,26 @@ def test_hover_popup_skips_the_tab_bar_ocr_when_told_the_exchange_is_closed(shot
     popup = hover_popup(shot_image("item hover"), (842, 927), dust_store(tmp_path), NOW, recording, exchange_open=lambda frame: False)
     assert popup is not None
     assert all(y > 0 for _, y in calls)  # nothing from the top strip
+
+
+def test_hover_popup_remembers_what_it_read_from_a_banner(shot_words, shot_image, tmp_path):
+    calls = []
+    inner = fake_reader(shot_words("item hover"))
+
+    def recording(image, offset=(0, 0), scale=1):
+        calls.append(offset)
+        return inner(image, offset, scale)
+
+    image, cache = shot_image("item hover"), {}
+    store = dust_store(tmp_path)
+    first = hover_popup(image, (842, 927), store, NOW, recording, exchange_open=lambda f: False, header_cache=cache)
+    reads_for_first = len(calls)
+    second = hover_popup(image, (842, 927), store, NOW, recording, exchange_open=lambda f: False, header_cache=cache)
+    assert reads_for_first > 0 and len(calls) == reads_for_first  # the second hover needed no OCR
+    assert first.lines == second.lines
+
+
+def test_hover_popup_carries_the_banner_rectangle(shot_words, shot_image, tmp_path):
+    popup = hover_popup(shot_image("item hover"), (842, 927), dust_store(tmp_path), NOW, fake_reader(shot_words("item hover")))
+    x, y, w, h = popup.anchor
+    assert abs(x - 980) <= 4 and abs(y - 852) <= 4 and 580 <= w <= 620
