@@ -31,7 +31,7 @@ class Screen(Enum):
 class SellRow:
     category: str
     name: str
-    quantity: int
+    quantity: int | None  # dim column the OCR often misses
     avg_price: int
     low_price: int
 
