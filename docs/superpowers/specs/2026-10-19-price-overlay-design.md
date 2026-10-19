@@ -99,3 +99,5 @@ Grades: the owner confirmed that the same item can exist in different grades wit
 - The data only exists for items a member has recently looked at in the Exchange; coverage grows with use.
 - Funcom permission is not confirmed.
 - Names shown in the popup identify friends; that is acceptable inside the group, since the owner chose to show the contributor.
+
+Tooltip finding (Task 5): the three hover screenshots show no grade marker in the tooltip (the only "Grade" text is the crafting component "Schematic Pattern Grade 1"). Until a grade source is found, the hover popup shows every known grade of the item.
