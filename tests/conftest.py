@@ -56,3 +56,14 @@ def shot_image():
         return Image.open(path).convert("RGB")
 
     return load
+
+
+@pytest.fixture(scope="session")
+def friend_frame(shot_image):
+    """The owner's 16:10 screenshot as a 16:9 monitor shows it: no black bars, scaled to 1920x1080."""
+
+    def load(name: str):
+        image = shot_image(name)
+        return image.crop((0, 80, image.width, 1520)).resize((1920, 1080))
+
+    return load

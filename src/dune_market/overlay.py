@@ -353,8 +353,12 @@ def run_overlay(
         scanner = Scanner(store, contributor, active=game_is_active)
 
         def scan_loop() -> None:
+            last_explained = 0.0
             while True:
                 try:
+                    if debug and game_is_active() and time.monotonic() - last_explained > 10 and time.monotonic() - scanner._exchange_seen_at > 10:
+                        last_explained = time.monotonic()
+                        log.info("scanner is waiting for the Exchange: %s", scanner.explain())
                     if scanner.scan_once(datetime.now(timezone.utc)):
                         signals.toast.emit(
                             scan_toast_lines(scanner.last_label, scanner.last_rows, scanner.last_new, scanner.session_total)

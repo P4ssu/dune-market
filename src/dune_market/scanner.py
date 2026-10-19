@@ -12,7 +12,8 @@ from dune_market.models import ItemKey, Observation, Screen, Word
 from dune_market.ocr import name_key, read_header, read_words
 from dune_market.parse_buy import parse_buy
 from dune_market.parse_sell import parse_sell
-from dune_market.screens import classify, exchange_tab_open
+from dune_market.layout import content_box, region
+from dune_market.screens import bar_scores, classify, exchange_tab_open
 from dune_market.store import PriceStore
 
 log = logging.getLogger(__name__)
@@ -23,11 +24,11 @@ _THUMB_SIZE = (64, 40)
 _SCAN_DELAY_S = 0.1  # between scans while the Exchange is open
 _IDLE_DELAY_S = 0.5  # between checks while it is not
 _EXCHANGE_RECENT_S = 3.0  # how long after the last Exchange frame the quick pace is kept
-# Frame fractions (left, top, right, bottom). The list area is read on every scan; the top strip with
+# Fractions of the picture (left, top, right, bottom), measured inside the black bars. The list area is read on every scan; the top strip with
 # the character name and Solari balance and the bottom bar are never read (also faster). On the Sell
 # tab the detail panel title (name and grade badge of the selected row) is read in a second, tight crop.
-SCAN_REGION = (0.03, 0.19, 0.71, 0.83)
-PANEL_TITLE_REGION = (0.70, 0.14, 0.97, 0.22)
+SCAN_REGION = (0.03, 0.156, 0.71, 0.867)
+PANEL_TITLE_REGION = (0.70, 0.09, 0.97, 0.19)
 
 
 def observations_from_words(words: list[Word], contributor: str, now: datetime) -> list[Observation]:
@@ -87,6 +88,7 @@ class Scanner:
         self._active = active
         self._exchange_open = exchange_open
         self._exchange_seen_at = float("-inf")
+        self._last_frame: Image.Image | None = None
         self._last_thumb: Image.Image | None = None
         self._held: dict[ItemKey, tuple[int | None, int | None]] = {}
         self._seen: set[tuple[str, str, str]] = set()
@@ -94,6 +96,14 @@ class Scanner:
         self.session_total = 0  # distinct items seen in this session
         self.last_label = ""  # what the last scan read, e.g. "Buy tab · GARMENTS - LIGHTARMOR · grade 3"
         self.last_rows = 0
+
+    def explain(self) -> str:
+        """Why the last frame was not taken for the Exchange (for --debug and bug reports)."""
+        frame = self._last_frame
+        if frame is None:
+            return "no frame seen yet"
+        q, e = bar_scores(frame)
+        return f"frame {frame.width}x{frame.height}, picture area {content_box(frame)}, key box gold {q:.2f}/{e:.2f} (needs 0.12+ on both)"
 
     @property
     def idle_delay(self) -> float:
@@ -116,13 +126,12 @@ class Scanner:
             if frame is None or not self._changed(frame):
                 return 0
             # Reading the list costs about a second of CPU, so first look at the tab bar's key boxes (pixels only).
+            self._last_frame = frame
             if not self._exchange_open(frame):
                 return 0
             self._exchange_seen_at = time.monotonic()
-            width, height = frame.size
-            left, top = int(width * SCAN_REGION[0]), int(height * SCAN_REGION[1])
-            region = frame.crop((left, top, int(width * SCAN_REGION[2]), int(height * SCAN_REGION[3])))
-            words = self._read(region, (left, top))
+            left, top, right, bottom = region(frame, SCAN_REGION)
+            words = self._read(frame.crop((left, top, right, bottom)), (left, top))
             if classify(words) == Screen.SELL:
                 words = words + self._read_panel_title(frame)
             observations = observations_from_words(words, self._contributor, now)
@@ -144,9 +153,8 @@ class Scanner:
             return 0
 
     def _read_panel_title(self, frame: Image.Image) -> list[Word]:
-        width, height = frame.size
-        left, top = int(width * PANEL_TITLE_REGION[0]), int(height * PANEL_TITLE_REGION[1])
-        crop = frame.crop((left, top, int(width * PANEL_TITLE_REGION[2]), int(height * PANEL_TITLE_REGION[3])))
+        left, top, right, bottom = region(frame, PANEL_TITLE_REGION)
+        crop = frame.crop((left, top, right, bottom))
         return [w for w in read_header(self._read, crop, (left, top)) if w.x >= left]
 
     def _passes_guard(self, obs: Observation) -> bool:

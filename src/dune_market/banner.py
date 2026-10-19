@@ -1,7 +1,7 @@
 """Find the inventory tooltip's header banner by its gold border lines (no OCR, a few milliseconds).
 
 The banner is a dark band framed by two long thin gold lines, about 0.23 of the screen width long
-and 0.045 of its height apart. Locating it first means only a tiny crop has to be OCR'd.
+and 0.028 of the screen width apart. Locating it first means only a tiny crop has to be OCR'd.
 """
 
 import math
@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 _MIN_LINE = 0.18  # a border line is at least this fraction of the frame width long
-_LINE_GAP = (0.035, 0.056)  # distance between the two lines, as a fraction of the frame height
+_LINE_GAP = (0.022, 0.034)  # distance between the two lines, as a fraction of the frame width (UI scale follows the width)
 _SEARCH_H = 0.30  # how far above/below the cursor to look, as a frame fraction (full width, so lines are never cut)
 
 
@@ -52,7 +52,7 @@ def find_banner(frame: Image.Image, cursor: tuple[int, int]) -> Banner | None:
     for y1, x1, n1 in runs:
         for y2, x2, n2 in runs:
             gap = y2 - y1
-            if not (height * _LINE_GAP[0] <= gap <= height * _LINE_GAP[1]):
+            if not (width * _LINE_GAP[0] <= gap <= width * _LINE_GAP[1]):
                 continue
             if abs(x1 - x2) > 8 or abs(n1 - n2) > 12:
                 continue

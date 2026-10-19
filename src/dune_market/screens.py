@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 
 from dune_market.banner import gold_mask
+from dune_market.layout import region
 from dune_market.models import Screen, Word
 
 
@@ -28,16 +29,21 @@ def classify(words: list[Word]) -> Screen:
 
 
 # The Exchange tab bar has a Q and an E key box (gold squares) at fixed spots; the inventory bar and
-# every other screen have them elsewhere or not at all. Fractions of the frame (left, top, right, bottom).
-_KEY_BOXES = ((0.368, 0.068, 0.402, 0.116), (0.598, 0.068, 0.632, 0.116))
+# every other screen have them elsewhere or not at all. Fractions of the picture (left, top, right, bottom).
+_KEY_BOXES = ((0.368, 0.020, 0.402, 0.074), (0.598, 0.020, 0.632, 0.074))
 _MIN_GOLD = 0.12  # measured: Exchange 0.18-0.19, inventory 0.00-0.07, other screens 0.00
 
 
+def bar_scores(frame: Image.Image) -> tuple[float, float]:
+    """How gold the Q and E key boxes are (0-1); the Exchange bar scores about 0.18 on both."""
+    scores = []
+    for fractions in _KEY_BOXES:
+        left, top, right, bottom = region(frame, fractions)
+        box = np.asarray(frame.crop((left, top, right, bottom)))
+        scores.append(float(gold_mask(box).mean()) if box.size else 0.0)
+    return scores[0], scores[1]
+
+
 def exchange_tab_open(frame: Image.Image) -> bool:
-    """True when the Exchange tab bar (BUY / SELL / MY ORDERS) is on screen. Pixels only: about a millisecond."""
-    width, height = frame.size
-    for left, top, right, bottom in _KEY_BOXES:
-        box = np.asarray(frame.crop((int(width * left), int(height * top), int(width * right), int(height * bottom))))
-        if box.size == 0 or gold_mask(box).mean() < _MIN_GOLD:
-            return False
-    return True
+    """True when the Exchange tab bar (BUY / SELL / MY ORDERS) is on screen. Pixels only: a few milliseconds."""
+    return all(score >= _MIN_GOLD for score in bar_scores(frame))
