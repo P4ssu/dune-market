@@ -15,10 +15,11 @@ from datetime import datetime, timezone
 from PIL import Image
 from PyQt6.QtCore import QObject, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import QApplication, QLabel
+from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QWidget
 
 from dune_market.banner import find_banner
 from dune_market.capture import cursor_position, game_is_active, grab_frame
+from dune_market.hotkey import HotkeyListener
 from dune_market.popup import (
     HoverTracker,
     PopupData,
@@ -29,6 +30,7 @@ from dune_market.popup import (
 )
 from dune_market.config import RemoteConfig
 from dune_market.scanner import Scanner
+from dune_market.search import render_search_html
 from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
 from dune_market.sync import SyncClient, start_sync_thread
@@ -36,6 +38,23 @@ from dune_market.sync import SyncClient, start_sync_thread
 log = logging.getLogger(__name__)
 
 _EXCHANGE_CHECK_TTL_S = 3.0  # the Exchange tab bar rarely changes, so a hover reuses the last answer
+
+
+def _draw_panel(widget: QWidget, solid: bool) -> None:
+    """The dark panel with a gold border that all our windows share."""
+    painter = QPainter(widget)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    rect = QRectF(widget.rect()).adjusted(0.75, 0.75, -0.75, -0.75)
+    path = QPainterPath()
+    path.addRoundedRect(rect, 0 if solid else 10, 0 if solid else 10)
+    gradient = QLinearGradient(0, 0, 0, widget.height())
+    gradient.setColorAt(0, QColor(38, 31, 22, 246))
+    gradient.setColorAt(1, QColor(21, 17, 12, 246))
+    painter.fillPath(path, gradient)
+    painter.setPen(QPen(QColor(150, 124, 70), 1.5))
+    painter.drawPath(path)
+    painter.fillRect(QRectF(0, 12, 3, widget.height() - 24), QColor(214, 178, 96))
+    painter.end()
 
 
 class PopupWindow(QLabel):
@@ -62,19 +81,7 @@ class PopupWindow(QLabel):
         self.setMinimumWidth(300)
 
     def paintEvent(self, event) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        rect = QRectF(self.rect()).adjusted(0.75, 0.75, -0.75, -0.75)
-        path = QPainterPath()
-        path.addRoundedRect(rect, 0 if self._solid else 10, 0 if self._solid else 10)
-        gradient = QLinearGradient(0, 0, 0, self.height())
-        gradient.setColorAt(0, QColor(38, 31, 22, 246))
-        gradient.setColorAt(1, QColor(21, 17, 12, 246))
-        painter.fillPath(path, gradient)
-        painter.setPen(QPen(QColor(150, 124, 70), 1.5))
-        painter.drawPath(path)
-        painter.fillRect(QRectF(0, 12, 3, self.height() - 24), QColor(214, 178, 96))
-        painter.end()
+        _draw_panel(self, self._solid)
         super().paintEvent(event)
 
     def _place(self, left: int, top: int) -> None:
@@ -135,10 +142,101 @@ class PopupWindow(QLabel):
             log.debug("could not raise the window", exc_info=True)
 
 
+class _SearchInput(QLineEdit):
+    escaped = pyqtSignal()
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self.escaped.emit()
+            return
+        super().keyPressEvent(event)
+
+
+class SearchWindow(QWidget):
+    """A search box with live results; opened and closed with a hotkey.
+
+    It takes keyboard focus (needed for typing) and gives it back to the game when closed.
+    """
+
+    def __init__(self, store: PriceStore, solid: bool = False, now: Callable[[], datetime] | None = None,
+                 restore_focus: bool = True):
+        super().__init__()
+        self._store = store
+        self._solid = solid
+        self._now = now or (lambda: datetime.now(timezone.utc))
+        self._restore_focus = restore_focus
+        self._previous_window = 0
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
+        if not solid:
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFont(QFont("Segoe UI", 10))
+        self.setFixedWidth(760)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 14, 18, 14)
+        title = QLabel('<span style="color:#e6c984;font-size:8pt">DUNE MARKET · SEARCH PRICES</span>')
+        title.setTextFormat(Qt.TextFormat.RichText)
+        self.input = _SearchInput()
+        self.input.setPlaceholderText("Item name, e.g. cobalt paste")
+        self.input.setStyleSheet(
+            "QLineEdit { background: #2a2217; color: #f1e8d2; border: 1px solid #967c46; border-radius: 5px;"
+            " padding: 7px 10px; font-size: 13pt; selection-background-color: #967c46; }"
+        )
+        self._results = QLabel()
+        self._results.setTextFormat(Qt.TextFormat.RichText)
+        self._results.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(title)
+        layout.addWidget(self.input)
+        layout.addWidget(self._results)
+        self.input.textChanged.connect(self._refresh)
+        self.input.escaped.connect(self.close_search)
+
+    def results_text(self) -> str:
+        return self._results.text()
+
+    def _refresh(self, text: str = "") -> None:
+        now = self._now()
+        self._results.setText(render_search_html(text, self._store.search(text, now), now))
+        self.adjustSize()
+
+    def paintEvent(self, event) -> None:
+        _draw_panel(self, self._solid)
+
+    def open_search(self) -> None:
+        if self._restore_focus:
+            self._previous_window = ctypes.windll.user32.GetForegroundWindow()
+        self.input.clear()
+        self._refresh("")
+        screen = QGuiApplication.primaryScreen()
+        if screen:
+            area = screen.geometry()
+            self.move(area.x() + (area.width() - self.width()) // 2, area.y() + int(area.height() * 0.12))
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        self.input.setFocus()
+        if self._restore_focus:
+            try:
+                ctypes.windll.user32.SetForegroundWindow(ctypes.c_void_p(int(self.winId())))
+            except Exception:
+                log.debug("could not bring the search window to the front", exc_info=True)
+
+    def close_search(self) -> None:
+        self.hide()
+        if self._restore_focus and self._previous_window:
+            try:
+                ctypes.windll.user32.SetForegroundWindow(ctypes.c_void_p(self._previous_window))
+            except Exception:
+                log.debug("could not give focus back", exc_info=True)
+
+    def toggle_search(self) -> None:
+        self.close_search() if self.isVisible() else self.open_search()
+
+
 class _Signals(QObject):
     show = pyqtSignal(object)
     hide = pyqtSignal()
     toast = pyqtSignal(object)
+    search = pyqtSignal()
 
 
 def make_lookup(
@@ -202,6 +300,7 @@ def run_overlay(
     solid: bool = False,
     contributor: str | None = None,
     remote: RemoteConfig | None = None,
+    search_hotkey: str = "ctrl+shift+f",
 ) -> None:
     """Show the hover popup; with a `contributor` name, also scan the Exchange and show in-game notices."""
     app = QApplication([])
@@ -221,6 +320,8 @@ def run_overlay(
         notice_timer.start(int(seconds * 1000))
 
     signals = _Signals()
+    search = SearchWindow(store, solid=solid)
+    signals.search.connect(search.toggle_search)
     signals.show.connect(window.show_popup)
     signals.hide.connect(window.hide_popup)
     signals.toast.connect(lambda lines: show_notice(lines, 3.0))
@@ -268,7 +369,11 @@ def run_overlay(
     if remote and hasattr(store, "unsent"):
         start_sync_thread(SyncClient(remote.url, remote.key, remote.world, store))
         sync_note = f" Sharing prices with friends (World {remote.world})."
+    hotkey = HotkeyListener(search_hotkey, signals.search.emit)
+    hotkey.start()
+    pretty = " + ".join(part.strip().capitalize() for part in search_hotkey.split("+"))
+    search_note = f"Search prices: {pretty}" if hotkey.wait_ready(2.0) and hotkey.registered else f"Search hotkey {pretty} is taken by another program"
     what = "scanning and price popups" if contributor else "price popups"
-    QTimer.singleShot(1500, lambda: show_notice(["Dune Market", f"Running: {what}", "Hover an item in your inventory."], 4.0))
-    print(f"Dune Market running ({what}).{sync_note or ' Prices stay on this computer only.'} Press Ctrl+C to stop.")
+    QTimer.singleShot(1500, lambda: show_notice(["Dune Market", f"Running: {what}", search_note], 5.0))
+    print(f"Dune Market running ({what}).{sync_note or ' Prices stay on this computer only.'} {search_note}. Press Ctrl+C to stop.")
     app.exec()

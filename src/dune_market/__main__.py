@@ -37,7 +37,8 @@ def _run(args: argparse.Namespace) -> None:
     from dune_market.overlay import run_overlay
 
     config = load_config(args.config)
-    run_overlay(SqliteStore(args.db), debug=args.debug, solid=args.solid, contributor=config.contributor, remote=config.remote)
+    run_overlay(SqliteStore(args.db), debug=args.debug, solid=args.solid, contributor=config.contributor, remote=config.remote,
+                search_hotkey=config.search_hotkey)
 
 
 def _selftest(args: argparse.Namespace) -> None:

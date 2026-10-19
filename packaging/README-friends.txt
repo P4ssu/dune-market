@@ -23,6 +23,9 @@ Kasutamine
   Buy-tabi (scrolli kategooriaid). Ekraani ülaossa ilmub teade, mitu rida loeti ja kui palju oli uusi.
   Mida rohkem sõpru itemeid skannib, seda täpsemad hinnad.
 - Hinna vaatamine: hoia hiirt inventory itemil või blueprintil.
+- Hinnaotsing: vajuta Ctrl+Shift+F, kirjuta itemi nimi (nt "cobalt paste") ja näed kõiki hindu
+  koos gradeiga. Esc või sama klahv uuesti sulgeb. Klahvi saab muuta failis config.toml
+  (rida search_hotkey, nt "F8").
 - Peatamine: sulge must konsooliaken.
 
 Kui popup ei ilmu mängu peale

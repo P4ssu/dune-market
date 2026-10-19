@@ -2,6 +2,9 @@
 # The name shown in the popup next to prices you scanned.
 contributor = "YourName"
 
+# Hotkey that opens/closes the item search (modifiers ctrl, shift, alt, win + one key).
+search_hotkey = "ctrl+shift+f"
+
 # Shared database (added later, after the Funcom permission check):
 # [remote]
 # url = "https://your-project.supabase.co"

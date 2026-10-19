@@ -93,6 +93,33 @@ class SqliteStore:
             ).fetchall()
         return stats_by_grade([_to_observation(r) for r in rows], now)
 
+    def search(self, query: str, now: datetime, limit: int = 8) -> list[ItemStats]:
+        """Items whose name contains every word of `query` (ignoring case and spacing), best matches first.
+
+        One entry per grade; names that start with the first word come first, then shorter names,
+        then the most recently updated.
+        """
+        keys = [k for k in (name_key(word) for word in query.split()) if k]
+        if not keys:
+            return []
+        where = " AND ".join("name_key LIKE ?" for _ in keys)  # name_key holds only a-z and 0-9
+        with self._connect() as db:
+            rows = db.execute(
+                f"SELECT {_COLUMNS}, name_key FROM observations WHERE {where}", [f"%{k}%" for k in keys]
+            ).fetchall()
+        groups: dict[tuple[str, str], list[Observation]] = {}
+        for row in rows:
+            groups.setdefault((row[10], row[1]), []).append(_to_observation(row))
+        items = []
+        for (key, _category), observations in groups.items():
+            stats = stats_by_grade(observations, now)
+            newest = max(st.updated_at for st in stats)
+            items.append((not key.startswith(keys[0]), len(key), -newest.timestamp(), stats))
+        results: list[ItemStats] = []
+        for *_, stats in sorted(items, key=lambda t: t[:3]):
+            results.extend(stats)
+        return results[:limit]
+
     # --- sync with the shared database -------------------------------------------------------
 
     def unsent(self, limit: int) -> list[tuple[str, Observation]]:

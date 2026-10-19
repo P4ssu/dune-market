@@ -2,6 +2,9 @@
 # See nimi ilmub popupis teistele: "Updated 2 h ago by <sinu nimi>".
 contributor = "KIRJUTA-SIIA-OMA-NIMI"
 
+# Klahv, millega hinnaotsing avatakse ja suletakse (nt "F8" või "ctrl+shift+f").
+search_hotkey = "ctrl+shift+f"
+
 # Jagatud hinnaandmebaas (ära muuda).
 [remote]
 url = "{{URL}}"
