@@ -28,7 +28,7 @@ def _scan(args: argparse.Namespace) -> None:
 def _overlay(args: argparse.Namespace) -> None:
     from dune_market.overlay import run_overlay
 
-    run_overlay(SqliteStore(args.db), debug=args.debug)
+    run_overlay(SqliteStore(args.db), debug=args.debug, solid=args.solid)
 
 
 def main() -> None:
@@ -40,6 +40,7 @@ def main() -> None:
     sub.add_parser("scan", help="read Sell/Buy tabs from the screen into the price database")
     overlay = sub.add_parser("overlay", help="show the price popup when hovering inventory items")
     overlay.add_argument("--debug", action="store_true", help="log every lookup and save the screen it found nothing on")
+    overlay.add_argument("--solid", action="store_true", help="use an opaque window (try this if the popup is not visible over the game)")
     args = parser.parse_args()
     if args.command == "scan":
         _scan(args)

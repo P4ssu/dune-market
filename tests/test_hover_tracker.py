@@ -79,3 +79,21 @@ def test_lookup_does_nothing_while_the_game_is_not_in_front():
     lookup = make_lookup(store=None, active=lambda: False, grab=lambda: grabbed.append(1))
     assert lookup((100, 100)) is None
     assert grabbed == []
+
+
+def test_solid_window_is_opaque_and_not_translucent():
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QApplication
+
+    from dune_market.overlay import PopupWindow
+
+    app = QApplication.instance() or QApplication([])
+    solid, normal = PopupWindow(solid=True), PopupWindow()
+    assert not solid.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    assert normal.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    assert not (solid.windowFlags() & Qt.WindowType.WindowTransparentForInput)
+    assert normal.windowFlags() & Qt.WindowType.WindowTransparentForInput
+    solid.show_popup(POPUP)
+    assert solid.isVisible()
+    app.processEvents()

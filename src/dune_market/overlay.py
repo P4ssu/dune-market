@@ -27,22 +27,27 @@ log = logging.getLogger(__name__)
 
 
 class PopupWindow(QLabel):
-    """Frameless, transparent, click-through, always-on-top price popup."""
+    """Frameless, always-on-top price popup.
 
-    def __init__(self):
+    Default: transparent and click-through. `solid=True` uses a plain opaque window instead, which
+    some games' display modes show when they hide transparent ("layered") windows.
+    """
+
+    def __init__(self, solid: bool = False):
         super().__init__()
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-            | Qt.WindowType.WindowTransparentForInput
-        )
+        flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool
+        if not solid:
+            flags |= Qt.WindowType.WindowTransparentForInput
+        self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setStyleSheet(
-            "background-color: rgba(27, 23, 18, 230); color: #e8d9b5;"
-            "padding: 10px; border-radius: 6px; font-size: 15px;"
-        )
+        if solid:
+            self.setStyleSheet("background-color: #1b1712; color: #e8d9b5; padding: 10px; font-size: 15px;")
+        else:
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            self.setStyleSheet(
+                "background-color: rgba(27, 23, 18, 230); color: #e8d9b5;"
+                "padding: 10px; border-radius: 6px; font-size: 15px;"
+            )
 
     def show_popup(self, popup: PopupData) -> None:
         title, *rest = popup.lines
@@ -96,13 +101,16 @@ def make_lookup(
     return lookup
 
 
-def run_overlay(store: PriceStore, debug: bool = False) -> None:
+def run_overlay(store: PriceStore, debug: bool = False, solid: bool = False) -> None:
     app = QApplication([])
     signal.signal(signal.SIGINT, signal.SIG_DFL)  # let Ctrl+C stop the overlay
-    window = PopupWindow()
+    window = PopupWindow(solid=solid)
     signals = _Signals()
     signals.show.connect(window.show_popup)
     signals.hide.connect(window.hide_popup)
+    if debug:
+        signals.show.connect(lambda popup: log.info("popup shown at (%s, %s)", popup.x, popup.y))
+        signals.hide.connect(lambda: log.info("popup hidden"))
 
     tracker = HoverTracker(
         lookup=make_lookup(store, debug=debug),
@@ -121,10 +129,12 @@ def run_overlay(store: PriceStore, debug: bool = False) -> None:
             time.sleep(0.1)
 
     # A test box a few seconds after start: if it shows over the game, the window itself works.
-    test = PopupData(["Dune Market overlay is running", "Hover an item in your inventory."], 100, 100)
-    QTimer.singleShot(4000, lambda: window.show_popup(test))
-    QTimer.singleShot(12000, window.hide_popup)
+    mode = "solid" if solid else "transparent"
+    test = PopupData([f"Dune Market test box ({mode} mode)", "If you see this over the game, the window works.",
+                      "It disappears after 40 seconds."], 100, 100)
+    QTimer.singleShot(3000, lambda: window.show_popup(test))
+    QTimer.singleShot(43000, window.hide_popup)
 
     threading.Thread(target=loop, daemon=True).start()
-    print("Overlay running. A test box appears at the top left in 4 seconds. Press Ctrl+C to stop.")
+    print(f"Overlay running ({mode} mode). A test box appears at the top left in 3 seconds and stays 40 s. Ctrl+C stops.")
     app.exec()
