@@ -23,3 +23,11 @@ def test_load_config_requires_contributor(tmp_path):
     path.write_text("", encoding="utf-8")
     with pytest.raises(ValueError, match="contributor"):
         load_config(str(path))
+
+
+def test_remote_world_defaults_to_andromeda_and_can_be_set(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text('contributor = "Mari"\n[remote]\nurl = "https://x.example"\nkey = "k"\n', encoding="utf-8")
+    assert load_config(str(path)).remote.world == "Andromeda"
+    path.write_text('contributor = "Mari"\n[remote]\nurl = "https://x.example"\nkey = "k"\nworld = "Orion"\n', encoding="utf-8")
+    assert load_config(str(path)).remote.world == "Orion"

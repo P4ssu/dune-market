@@ -8,6 +8,7 @@ from dataclasses import dataclass
 class RemoteConfig:
     url: str
     key: str
+    world: str = "Andromeda"  # prices differ per World, so only rows of this World are shared
 
 
 @dataclass(frozen=True)
@@ -23,4 +24,4 @@ def load_config(path: str) -> Config:
     if not contributor:
         raise ValueError("config.toml needs a non-empty `contributor` name")
     remote = data.get("remote")
-    return Config(contributor, RemoteConfig(remote["url"], remote["key"]) if remote else None)
+    return Config(contributor, RemoteConfig(remote["url"], remote["key"], remote.get("world", "Andromeda")) if remote else None)

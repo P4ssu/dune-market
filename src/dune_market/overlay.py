@@ -27,9 +27,11 @@ from dune_market.popup import (
     render_toast_html,
     scan_toast_lines,
 )
+from dune_market.config import RemoteConfig
 from dune_market.scanner import Scanner
 from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
+from dune_market.sync import SyncClient, start_sync_thread
 
 log = logging.getLogger(__name__)
 
@@ -199,6 +201,7 @@ def run_overlay(
     debug: bool = False,
     solid: bool = False,
     contributor: str | None = None,
+    remote: RemoteConfig | None = None,
 ) -> None:
     """Show the hover popup; with a `contributor` name, also scan the Exchange and show in-game notices."""
     app = QApplication([])
@@ -261,7 +264,11 @@ def run_overlay(
 
         threading.Thread(target=scan_loop, daemon=True).start()
 
+    sync_note = ""
+    if remote and hasattr(store, "unsent"):
+        start_sync_thread(SyncClient(remote.url, remote.key, remote.world, store))
+        sync_note = f" Sharing prices with friends (World {remote.world})."
     what = "scanning and price popups" if contributor else "price popups"
     QTimer.singleShot(1500, lambda: show_notice(["Dune Market", f"Running: {what}", "Hover an item in your inventory."], 4.0))
-    print(f"Dune Market running ({what}). Press Ctrl+C to stop.")
+    print(f"Dune Market running ({what}).{sync_note or ' Prices stay on this computer only.'} Press Ctrl+C to stop.")
     app.exec()
