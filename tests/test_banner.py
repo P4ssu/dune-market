@@ -30,3 +30,10 @@ def test_banner_found_at_other_resolutions(shot_image):
     banner = find_banner(small, (398, 465))
     assert banner is not None
     assert abs(banner.x - 673 * 0.75) <= 6 and abs(banner.w - 601 * 0.75) <= 10
+
+
+def test_finds_the_banner_of_a_tall_armor_tooltip_far_above_the_cursor(shot_image):
+    # The armor tooltip is tall: its header is 560 px above the hovered slot.
+    banner = find_banner(shot_image("armor popup"), (224, 928))
+    assert banner is not None
+    assert abs(banner.x - 362) <= 4 and abs(banner.y - 369) <= 4 and 590 <= banner.w <= 615, banner

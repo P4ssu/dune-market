@@ -12,7 +12,8 @@ from PIL import Image
 
 _MIN_LINE = 0.18  # a border line is at least this fraction of the frame width long
 _LINE_GAP = (0.022, 0.034)  # distance between the two lines, as a fraction of the frame width (UI scale follows the width)
-_SEARCH_H = 0.30  # how far above/below the cursor to look, as a frame fraction (full width, so lines are never cut)
+_SEARCH_UP, _SEARCH_DOWN = 0.60, 0.30  # how far above/below the cursor to look, as frame fractions (full width, so lines are never cut);
+# tall tooltips (armor: description plus stats) put their header far above the hovered slot
 
 
 @dataclass(frozen=True)
@@ -42,8 +43,8 @@ def _runs(mask: np.ndarray, min_length: int) -> list[tuple[int, int, int]]:
 def find_banner(frame: Image.Image, cursor: tuple[int, int]) -> Banner | None:
     """The banner (pair of gold lines) closest to the cursor, or None."""
     width, height = frame.size
-    left, top = 0, max(0, int(cursor[1] - height * _SEARCH_H))
-    right, bottom = width, min(height, int(cursor[1] + height * _SEARCH_H))
+    left, top = 0, max(0, int(cursor[1] - height * _SEARCH_UP))
+    right, bottom = width, min(height, int(cursor[1] + height * _SEARCH_DOWN))
     if bottom <= top:
         return None
     runs = _runs(gold_mask(np.asarray(frame.crop((left, top, right, bottom)))), int(width * _MIN_LINE))

@@ -180,3 +180,14 @@ def test_hover_popup_carries_the_banner_rectangle(shot_words, shot_image, tmp_pa
     popup = hover_popup(shot_image("item hover"), (842, 927), dust_store(tmp_path), NOW, fake_reader(shot_words("item hover")))
     x, y, w, h = popup.anchor
     assert abs(x - 980) <= 4 and abs(y - 852) <= 4 and 580 <= w <= 620
+
+
+def test_hover_popup_for_armor_reads_name_category_and_finds_prices(shot_image, tmp_path):
+    from dune_market.ocr import read_words
+
+    store = SqliteStore(str(tmp_path / "p.db"))
+    store.add([Observation(ItemKey("Pincushion Helmet", "GARMENTS - LIGHTARMOR", "0"), "buy", NOW - timedelta(hours=1), "Mari",
+                           price=1_200_000, expires_in_s=100)])
+    popup = hover_popup(shot_image("armor popup"), (224, 928), store, NOW, read_words)
+    assert popup is not None and popup.lines[0] == "Pincushion Helmet"
+    assert "Cheapest now: 1,200,000" in popup.lines
