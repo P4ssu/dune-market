@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from dune_market.hotkey import parse_hotkey
 
 
-PLACEHOLDER_NAME = "KIRJUTA-SIIA-OMA-NIMI"  # what the friends' config template holds until they type their name
+PLACEHOLDER_NAMES = ("WRITE-YOUR-NAME-HERE", "KIRJUTA-SIIA-OMA-NIMI")  # what the friends config template holds until a name is typed
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ def load_config(path: str) -> Config:
     with open(path, "rb") as f:
         data = tomllib.load(f)
     contributor = data.get("contributor")
-    if not contributor or contributor == PLACEHOLDER_NAME:
+    if not contributor or contributor in PLACEHOLDER_NAMES:
         raise ValueError("config.toml: write your own name on the `contributor = ...` line")
     remote = data.get("remote")
     hotkey = data.get("search_hotkey", "ctrl+shift+f")

@@ -1,40 +1,53 @@
-DUNE MARKET - hinnapopup Dune: Awakeningu jaoks
-================================================
+DUNE MARKET - live Exchange prices for Dune: Awakening
+=======================================================
 
-Mida see teeb
-- Kui hoiad hiirt inventory itemil, ilmub tooltipi kohale popup: keskmine hind, odavaim pakkumine,
-  trend, pakkumiste arv ja kui vana info on.
-- Kui avad Exchange'i (Buy / Sell tab), loeb programm ekraanilt hinnad ja salvestab need.
-  Hinnad jagatakse sõpradega ühte andmebaasi, nii et iga sõbra skannitud hinnad on kõigile nähtavad.
+WHAT IT IS
+A small free tool that shows Exchange (market) prices right in the game:
+  * Hover an item or blueprint in your inventory -> a popup shows the average price, the cheapest
+    listing, the price trend and how fresh the data is, for that item's grade.
+  * Press Ctrl+Shift+F -> a search box opens. Type an item name and see its prices.
+  * Whenever you open the Exchange (Buy / Sell tab), the tool reads the prices on your screen and
+    shares them with everyone using the tool. The more people browse the market, the better the data.
 
-Paigaldus (ainult esimene kord)
-1. Paki see kaust lahti kuhu tahad (nt Töölaud). Ära jooksuta .zip seest.
-2. Ava fail  config.toml  Notepadiga ja kirjuta rida  contributor = "..."  sisse oma nimi. Salvesta.
-3. Mängus: Settings -> Graphics -> Display mode = "Windowed Fullscreen" (borderless).
-   Täisekraanis popup ei ilmu.
-4. Topeltklõpsa  DuneMarket.exe.
-   Windows võib kirjutada "Windows protected your PC". Vali "More info" ja "Run anyway"
-   (programm pole allkirjastatud).
-5. Must aken (konsool) jääb avatuks, ära sulge seda. Mängu peal ilmub mõne sekundi pärast teade
-   "Dune Market - Running".
+INSTALL (once)
+1. Unzip the whole folder to a short location such as your Desktop (very long folder paths can fail).
+   Do not run anything from inside the zip.
+2. In the game: Settings -> Graphics -> Display Mode = "Windowed Fullscreen" (borderless).
+   In exclusive fullscreen the popup cannot be drawn over the game.
+3. Open the unzipped folder and double-click  Install.bat
+   - Windows may say "Windows protected your PC" (the program is not signed).
+     Click "More info", then "Run anyway".
+   - Type your in-game name when asked (friends see it next to the prices you scan).
+4. A "Dune Market" shortcut appears on your desktop.
 
-Kasutamine
-- Hindade kogumine: ava mängus Exchange ja vaata Sell-tabi (näitab sinu seljakoti hindu) või
-  Buy-tabi (scrolli kategooriaid). Ekraani ülaossa ilmub teade, mitu rida loeti ja kui palju oli uusi.
-  Mida rohkem sõpru itemeid skannib, seda täpsemad hinnad.
-- Hinna vaatamine: hoia hiirt inventory itemil või blueprintil.
-- Hinnaotsing: vajuta Ctrl+Shift+F, kirjuta itemi nimi (nt "cobalt paste") ja näed kõiki hindu
-  koos gradeiga. Esc või sama klahv uuesti sulgeb. Klahvi saab muuta failis config.toml
-  (rida search_hotkey, nt "F8").
-- Peatamine: sulge must konsooliaken.
+USE
+1. Start the game, then double-click "Dune Market" on your desktop. A black window stays open
+   (do not close it) and a notice "Dune Market - Running" appears over the game.
+2. Collect prices: open the Exchange. On the Sell tab the game shows prices for the items in your
+   backpack; on the Buy tab scroll through the categories. A notice at the top of the screen shows
+   how many rows were read and how many were new.
+3. See prices: hover an item in your inventory, or press Ctrl+Shift+F and type a name.
+   Esc closes the search.
+4. To stop: close the black window.
 
-Kui popup ei ilmu mängu peale
-- Kasuta  start-solid.bat  (topeltklõps) DuneMarket.exe asemel.
+SETTINGS
+Edit  %LOCALAPPDATA%\DuneMarket\config.toml  with Notepad (press Win+R, paste the path, press Enter):
+  contributor    your name
+  search_hotkey  the search key, for example "F8" or "ctrl+shift+f"
 
-Privaatsus ja märkused
-- Programm vaatab ekraani ainult siis, kui Dune: Awakening on aktiivne aken. See ei puutu mängu
-  faile, mälu ega võrguliiklust ega saada mängule midagi.
-- Andmebaasi lähevad ainult hinnad, itemite nimed ja sinu config.toml'is olev nimi. Ekraanipilte
-  ei salvestata ega saadeta.
-- See on mitteametlik tööriist. Funcom ei ole seda kinnitanud. Kasuta omal vastutusel.
-- Hinnad on World'i põhised. Praegu jagatakse ainult World'i Andromeda hindu.
+TROUBLESHOOTING
+* The popup does not appear over the game: run "start-solid.bat" from %LOCALAPPDATA%\DuneMarket
+  (it uses a plain window), and make sure the game is in Windowed Fullscreen.
+* Nothing is found in the search: prices exist only for items someone has already browsed in the Exchange.
+* The search hotkey does nothing: another program uses that key. Change search_hotkey in config.toml.
+* Updating: unzip the new version and run Install.bat again. Your settings are kept.
+* Remove: run Uninstall.bat.
+
+PRIVACY AND IMPORTANT NOTES
+* The tool only looks at the screen while Dune: Awakening is the active window. It does not read the
+  game's memory or files, does not touch its network traffic and does not send any input to the game.
+* The shared database only receives item names, prices and the name you chose.
+  No screenshots are saved or sent.
+* This is an UNOFFICIAL community tool. It is not made or endorsed by Funcom, and Funcom has not
+  confirmed that screen-reading tools like it are allowed. Use it at your own risk.
+* Prices are per World. This version shares prices of the World Andromeda only.

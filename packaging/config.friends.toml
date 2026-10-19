@@ -1,11 +1,13 @@
-# Dune Market seadistus. Muuda ainult allolevat nime (jutumärkide vahel) ja salvesta.
-# See nimi ilmub popupis teistele: "Updated 2 h ago by <sinu nimi>".
-contributor = "KIRJUTA-SIIA-OMA-NIMI"
+# Dune Market settings. Install.bat asks for your name and fills it in for you.
+# If you edit this file yourself, change only the lines below and save.
 
-# Klahv, millega hinnaotsing avatakse ja suletakse (nt "F8" või "ctrl+shift+f").
+# Your in-game name. Friends see it in the popup: "Updated 2 h ago by <your name>".
+contributor = "WRITE-YOUR-NAME-HERE"
+
+# The key that opens and closes the price search (modifiers: ctrl, shift, alt, win + one key).
 search_hotkey = "ctrl+shift+f"
 
-# Jagatud hinnaandmebaas (ära muuda).
+# Shared price database (do not change).
 [remote]
 url = "{{URL}}"
 key = "{{KEY}}"
