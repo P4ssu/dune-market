@@ -1,0 +1,15 @@
+# Personal / local files
+config.toml
+prices.db
+debug-last-frame.png
+screenshots/
+
+# Build output and tooling
+.venv/
+dist/
+build/
+*.spec
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.superpowers/
