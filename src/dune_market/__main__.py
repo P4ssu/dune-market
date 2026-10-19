@@ -1,4 +1,4 @@
-"""Command line entry: `python -m dune_market scan`."""
+"""Command line entry: `python -m dune_market scan` and `python -m dune_market overlay`."""
 
 import argparse
 import logging
@@ -24,6 +24,12 @@ def _scan(args: argparse.Namespace) -> None:
         pass
 
 
+def _overlay(args: argparse.Namespace) -> None:
+    from dune_market.overlay import run_overlay
+
+    run_overlay(SqliteStore(args.db))
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(prog="dune_market")
@@ -31,9 +37,12 @@ def main() -> None:
     parser.add_argument("--db", default="prices.db")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("scan", help="read Sell/Buy tabs from the screen into the price database")
+    sub.add_parser("overlay", help="show the price popup when hovering inventory items")
     args = parser.parse_args()
     if args.command == "scan":
         _scan(args)
+    else:
+        _overlay(args)
 
 
 if __name__ == "__main__":

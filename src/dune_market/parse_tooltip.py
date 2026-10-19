@@ -1,13 +1,24 @@
 """Find the inventory tooltip header (category line + item name) near the cursor."""
 
 import math
+from dataclasses import dataclass
 
 from dune_market.models import Word
 from dune_market.ocr import normalize_category, normalize_name, parse_price
 
 
-def parse_tooltip(words: list[Word], cursor: tuple[int, int]) -> tuple[str, str] | None:
-    """Return (name, category) of the tooltip header closest to the cursor."""
+@dataclass(frozen=True)
+class TooltipHit:
+    name: str
+    category: str
+    x: float  # top-left of the category line, in frame pixels
+    y: float
+    w: float
+    h: float
+
+
+def find_tooltip(words: list[Word], cursor: tuple[int, int]) -> TooltipHit | None:
+    """The tooltip header closest to the cursor, with its position."""
     best = None
     for cat in words:
         category = normalize_category(cat.text)
@@ -23,5 +34,11 @@ def parse_tooltip(words: list[Word], cursor: tuple[int, int]) -> tuple[str, str]
         name = min(below, key=lambda w: w.y)
         distance = math.hypot(cat.x + cat.w / 2 - cursor[0], cat.y + cat.h / 2 - cursor[1])
         if best is None or distance < best[0]:
-            best = (distance, normalize_name(name.text), category)
-    return None if best is None else (best[1], best[2])
+            best = (distance, TooltipHit(normalize_name(name.text), category, cat.x, cat.y, cat.w, cat.h))
+    return None if best is None else best[1]
+
+
+def parse_tooltip(words: list[Word], cursor: tuple[int, int]) -> tuple[str, str] | None:
+    """Return (name, category) of the tooltip header closest to the cursor."""
+    hit = find_tooltip(words, cursor)
+    return None if hit is None else (hit.name, hit.category)

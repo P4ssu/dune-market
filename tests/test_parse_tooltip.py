@@ -1,5 +1,5 @@
 from dune_market.models import Word
-from dune_market.parse_tooltip import parse_tooltip
+from dune_market.parse_tooltip import find_tooltip, parse_tooltip
 
 
 def test_tooltip_item(shot_words):
@@ -32,3 +32,9 @@ def test_tooltip_picks_header_closest_to_cursor():
         Word("SCHEMATIC-UNIQUE", 1500, 800, 240, 26), Word("Near Item", 1500, 828, 150, 28),
     ]
     assert parse_tooltip(words, (1450, 850)) == ("Near Item", "SCHEMATIC - UNIQUE")
+
+
+def test_find_tooltip_returns_header_box(shot_words):
+    hit = find_tooltip(shot_words("schematic hover"), (531, 620))
+    assert (hit.name, hit.category) == ("Quick-release Trigger", "SCHEMATIC - UNIQUE")
+    assert 600 < hit.x < 700 and 330 < hit.y < 370 and hit.w > 200
