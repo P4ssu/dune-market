@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from datetime import datetime, timezone
 
+from dune_market import __version__
 from dune_market.capture import game_is_active
 from dune_market.config import load_config
 from dune_market.scanner import Scanner
@@ -63,6 +64,7 @@ def main() -> None:
     home = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path.cwd()
     parser.add_argument("--config", default=str(home / "config.toml"))
     parser.add_argument("--db", default=str(home / "prices.db"))
+    parser.add_argument("--version", action="version", version=f"Dune Market {__version__}")
     parser.set_defaults(debug=False, solid=False)
     sub = parser.add_subparsers(dest="command")  # no command (double-clicking the .exe) means "run"
 

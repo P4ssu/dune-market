@@ -51,7 +51,8 @@ TROUBLESHOOTING
   (it uses a plain window), and make sure the game is in Windowed Fullscreen.
 * Nothing is found in the search: prices exist only for items someone has already browsed in the Exchange.
 * The search hotkey does nothing: another program uses that key. Change search_hotkey in config.toml.
-* Updating: unzip the new version and run Install.bat again. Your settings are kept.
+* Updating: when a new version is published, a notice appears in the game and in the black window
+  with a download link. Download the new zip, unzip it and run Install.bat again. Your settings are kept.
 * Remove: run Uninstall.bat.
 
 PRIVACY AND IMPORTANT NOTES

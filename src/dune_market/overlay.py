@@ -28,12 +28,14 @@ from dune_market.popup import (
     render_toast_html,
     scan_toast_lines,
 )
+from dune_market import __version__
 from dune_market.config import RemoteConfig
 from dune_market.scanner import Scanner
 from dune_market.search import render_search_html
 from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
 from dune_market.sync import SyncClient, start_sync_thread
+from dune_market.update import start_update_checks, update_toast_lines
 
 log = logging.getLogger(__name__)
 
@@ -236,6 +238,7 @@ class _Signals(QObject):
     show = pyqtSignal(object)
     hide = pyqtSignal()
     toast = pyqtSignal(object)
+    notice = pyqtSignal(object)  # a longer-lived notice, e.g. a new version
     search = pyqtSignal()
 
 
@@ -325,6 +328,7 @@ def run_overlay(
     signals.show.connect(window.show_popup)
     signals.hide.connect(window.hide_popup)
     signals.toast.connect(lambda lines: show_notice(lines, 3.0))
+    signals.notice.connect(lambda lines: show_notice(lines, 14.0))
     if debug:
         signals.show.connect(lambda popup: log.info("popup shown at (%s, %s)", popup.x, popup.y))
         signals.hide.connect(lambda: log.info("popup hidden"))
@@ -373,11 +377,21 @@ def run_overlay(
     if remote and hasattr(store, "unsent"):
         start_sync_thread(SyncClient(remote.url, remote.key, remote.world, store))
         sync_note = f" Sharing prices with friends (World {remote.world})."
+
+        def on_update(info) -> None:
+            print(f"\nA new version of Dune Market is available: {info.version} (you have {__version__}).")
+            if info.notes:
+                print(f"  What is new: {info.notes}")
+            if info.url:
+                print(f"  Download: {info.url}")
+            signals.notice.emit(update_toast_lines(info, __version__))
+
+        start_update_checks(remote.url, remote.key, __version__, on_update)
     hotkey = HotkeyListener(search_hotkey, signals.search.emit)
     hotkey.start()
     pretty = " + ".join(part.strip().capitalize() for part in search_hotkey.split("+"))
     search_note = f"Search prices: {pretty}" if hotkey.wait_ready(2.0) and hotkey.registered else f"Search hotkey {pretty} is taken by another program"
     what = "scanning and price popups" if contributor else "price popups"
-    QTimer.singleShot(1500, lambda: show_notice(["Dune Market", f"Running: {what}", search_note], 5.0))
+    QTimer.singleShot(1500, lambda: show_notice([f"Dune Market v{__version__}", f"Running: {what}", search_note], 5.0))
     print(f"Dune Market running ({what}).{sync_note or ' Prices stay on this computer only.'} {search_note}. Press Ctrl+C to stop.")
     app.exec()
