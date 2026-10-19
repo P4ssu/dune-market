@@ -6,7 +6,7 @@ from dune_market.models import BuyRow, Word
 from dune_market.ocr import name_line, normalize_category, normalize_name, parse_price
 
 _EXPIRATION_RE = re.compile(r"^(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$")
-_GRADE_RE = re.compile(r"GRADE:?(.+)", re.IGNORECASE)
+_GRADE_RE = re.compile(r"^GRADE:(.+)", re.IGNORECASE)  # anchored: item names can contain "grade"
 
 
 def _center(word: Word) -> float:
@@ -32,7 +32,7 @@ def parse_expiration(text: str) -> int | None:
 
 def _read_grade(words: list[Word]) -> str:
     for word in words:
-        match = _GRADE_RE.search(_compact(word.text))
+        match = _GRADE_RE.match(_compact(word.text))
         if match:
             return match.group(1).lower()
     return "all"

@@ -92,3 +92,8 @@ def test_unchanged_frame_is_not_rescanned(shot_words, tmp_path):
     scanner = Scanner(store, "Mari", grab=lambda: frame(10), read=lambda image: words)
     assert scanner.scan_once(NOW) == 6
     assert scanner.scan_once(NOW + timedelta(seconds=1)) == 0
+
+
+def test_guard_rejects_low_price_jump():
+    assert accept(sell_obs(56_359, low=4_000), sell_obs(56_359, low=46_000)) is False
+    assert accept(sell_obs(56_359, low=47_000), sell_obs(56_359, low=46_000)) is True

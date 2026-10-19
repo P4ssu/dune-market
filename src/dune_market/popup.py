@@ -15,6 +15,7 @@ from dune_market.store import PriceStore
 log = logging.getLogger(__name__)
 
 _HEADER_BAND = 0.12  # top fraction of the frame holding the Exchange tab names
+_HEADER_X = (0.35, 0.65)  # ...and the centre part of it; the corners hold the character name and Solari balance
 _REGION_W, _REGION_H = 0.20, 0.25  # half-size of the crop around the cursor, as frame fractions
 _HEADER_READ_W = 0.30  # width of the second, header-only crop, as a frame fraction
 _LINE_HEIGHT = 28  # approximate popup line height in pixels, used to place it above the tooltip
@@ -73,7 +74,8 @@ def hover_popup(
 
     # Exchange tabs list items with the same category-line pattern as tooltips,
     # so stay quiet whenever an Exchange tab is open.
-    header = read(frame.crop((0, 0, width, int(height * _HEADER_BAND))), (0, 0))
+    header_left = int(width * _HEADER_X[0])
+    header = read(frame.crop((header_left, 0, int(width * _HEADER_X[1]), int(height * _HEADER_BAND))), (header_left, 0))
     if any("MYORDERS" in "".join(w.text.split()).upper() for w in header):
         return None
 

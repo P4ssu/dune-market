@@ -71,3 +71,23 @@ def test_stats_by_grade_one_entry_per_grade_newest_first():
     g3 = ItemKey("Cobalt Paste", "MISC - REFINEDRESOURCES", "3")
     result = stats_by_grade([sell(5, 100, 80), sell(1, 200, 150, key=g3)], NOW)
     assert [s.key.grade for s in result] == ["3", "unknown"]
+
+
+def test_buy_price_far_below_average_is_ignored():
+    stats = compute_stats(KEY, [sell(1, 10_000, 9_000), buy(1, 1_000), buy(1, 9_500)], NOW)
+    assert stats.cheapest == 9_000
+    assert stats.listing_count == 1
+
+
+def test_old_sell_low_is_not_shown_as_fresh():
+    stats = compute_stats(KEY, [sell(120, 8_900, 8_900), buy(0.02, 15_000)], NOW)
+    assert stats.cheapest == 15_000
+    assert stats.stale is True
+    assert stats.updated_at == NOW - timedelta(hours=120)
+
+
+def test_cheapest_spans_a_scroll_session_but_not_old_scans():
+    obs = [buy(2, 50), buy(0.17, 100), buy(0.02, 200), buy(0.02, 210)]  # scans 2 h, 10 min, 1 min ago
+    stats = compute_stats(KEY, obs, NOW)
+    assert stats.cheapest == 100  # the 2 h old scan is outside the session window
+    assert stats.listing_count == 2  # count still comes from the newest scan only

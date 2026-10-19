@@ -124,3 +124,17 @@ def test_hover_popup_real_ocr_reads_the_full_name(tmp_path):
     popup = hover_popup(Image.open(path).convert("RGB"), (842, 927), dust_store(tmp_path), NOW, read_words)
     assert popup.lines[0] == "Spice-infused Plastanium Dust"
     assert "Avg price: 5,000" in popup.lines
+
+
+def test_hover_popup_header_check_reads_only_the_centre_tabs(shot_words, tmp_path):
+    """The first OCR call must not include the screen corners (character name, Solari balance)."""
+    calls = []
+    inner = fake_reader(shot_words("item hover"))
+
+    def recording(image, offset=(0, 0)):
+        calls.append((offset, image.size))
+        return inner(image, offset)
+
+    hover_popup(FRAME, (842, 927), dust_store(tmp_path), NOW, recording)
+    (x, y), (w, h) = calls[0]
+    assert x > 300 and x + w < FRAME.width - 300 and y == 0

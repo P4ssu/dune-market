@@ -45,3 +45,12 @@ def test_parse_buy_ignores_partial_last_row(shot_words):
 
 def test_parse_buy_empty():
     assert parse_buy([]) == ("all", [])
+
+
+def test_grade_label_ignores_listing_names_containing_grade():
+    from dune_market.models import Word
+
+    words = [Word("Schematic Pattern Grade 1", 800, 400, 300, 30), Word("Upgrade Kit", 800, 500, 200, 30),
+             Word("GRADE:ALL", 734, 1237, 147, 29)]
+    assert parse_buy(words)[0] == "all"
+    assert parse_buy([Word("GRADE: 3", 734, 1237, 147, 29)])[0] == "3"

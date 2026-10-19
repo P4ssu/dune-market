@@ -41,12 +41,17 @@ def observations_from_words(words: list[Word], contributor: str, now: datetime) 
     return []  # My Orders (own listings) and every other screen
 
 
-def accept(obs: Observation, previous: Observation | None) -> bool:
-    """False when a sell average jumps implausibly against the stored one (likely OCR misread)."""
-    if previous is None or not previous.avg or obs.avg is None:
+def _within_jump(new: int | None, old: int | None) -> bool:
+    if new is None or not old:
         return True
-    ratio = obs.avg / previous.avg
-    return 1 / JUMP_FACTOR <= ratio <= JUMP_FACTOR
+    return 1 / JUMP_FACTOR <= new / old <= JUMP_FACTOR
+
+
+def accept(obs: Observation, previous: Observation | None) -> bool:
+    """False when a sell average or low price jumps implausibly against the stored one (likely OCR misread)."""
+    if previous is None:
+        return True
+    return _within_jump(obs.avg, previous.avg) and _within_jump(obs.low, previous.low)
 
 
 class Scanner:
