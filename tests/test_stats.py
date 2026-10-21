@@ -58,6 +58,16 @@ def test_no_trend_arrow_when_the_last_lowest_is_not_the_sell_low():
 
 
 
+def test_expiry_of_the_cheapest_listing():
+    cheap = Observation(KEY, "buy", NOW - timedelta(hours=0.1), "Mari", price=70, expires_in_s=7200)
+    stats = compute_stats(KEY, [cheap, buy(0.1, 95)], NOW)
+    assert stats.lowest_expires_at == cheap.observed_at + timedelta(seconds=7200)
+
+
+def test_no_expiry_when_the_lowest_is_the_sell_tab_low():
+    assert compute_stats(KEY, [sell(0.1, 100, 60), buy(0.1, 70)], NOW).lowest_expires_at is None
+
+
 def test_highest_unknown_without_buy_scan():
     assert compute_stats(KEY, [sell(1, 100, 80)], NOW).highest is None
 

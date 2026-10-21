@@ -16,6 +16,7 @@ Update this file when something gets done or the plan changes. History and reaso
 - Scanner reliability fix (reads one-row and in-place changes, waits for the list to settle, median guard), popup shows lowest + average (last known, with age), tray icon, log file; release 1.3.0.
 - Release 1.3.1: average from Buy tab listings when the item was never on the Sell tab.
 - Popup shows last lowest (newest scan session only) and average.
+- Search: category words, `text:N` grade filter, expiry of the cheapest listing.
 
 ## In progress
 

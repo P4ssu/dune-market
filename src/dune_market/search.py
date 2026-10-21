@@ -5,7 +5,27 @@ from datetime import datetime
 from dune_market.models import ItemStats
 from dune_market.popup import AMBER, GOLD, GREEN, MUTED, RED, TEXT, _age, _esc
 
-SEARCH_HINT = "Type an item name"
+SEARCH_HINT = "Type an item name or category; add :5 for grade 5 (e.g. garment:5)"
+
+
+def parse_query(query: str) -> tuple[str, str | None]:
+    """Split "garment:5" into the search words and the grade after the colon (None without one)."""
+    text, colon, grade = query.rpartition(":")
+    if colon and grade.strip().isdigit():
+        return text, grade.strip()
+    return query, None
+
+
+def _expires(expires_at: datetime | None, now: datetime) -> str:
+    if expires_at is None:
+        return "–"
+    seconds = int((expires_at - now).total_seconds())
+    if seconds <= 0:
+        return "expired"
+    days, hours, minutes = seconds // 86400, seconds % 86400 // 3600, seconds % 3600 // 60
+    if days:
+        return f"{days} d {hours} h"
+    return f"{hours} h {minutes} min" if hours else f"{minutes} min"
 
 
 def _row(s: ItemStats, now: datetime) -> str:
@@ -26,6 +46,7 @@ def _row(s: ItemStats, now: datetime) -> str:
         f'<td align="center" style="color:{GOLD}">{_esc(grade)}</td>'
         f'<td align="right" style="color:{GOLD};font-weight:600">{lowest}</td>'
         f'<td align="right" style="color:{TEXT}">{avg}</td>'
+        f'<td align="right" style="color:{MUTED};font-size:9pt">{_expires(s.lowest_expires_at, now)}</td>'
         f'<td style="color:{age_color};font-size:8pt">&nbsp;&nbsp;{_age(s.updated_at, now)} · {_esc(s.contributor)}{old}</td>'
         "</tr>"
     )
@@ -39,7 +60,7 @@ def render_search_html(query: str, results: list[ItemStats], now: datetime) -> s
         return f'<div style="color:{MUTED}">No items found for “{_esc(query.strip())}”.</div>'
     head = "".join(
         f'<td align="{align}" style="color:{MUTED};font-size:8pt">{label}</td>'
-        for label, align in (("ITEM", "left"), ("GRADE", "center"), ("LAST LOW", "right"), ("AVG", "right"), ("UPDATED", "left"))
+        for label, align in (("ITEM", "left"), ("GRADE", "center"), ("LAST LOW", "right"), ("AVG", "right"), ("EXPIRES", "right"), ("UPDATED", "left"))
     )
     return (
         '<table width="100%" cellspacing="0" cellpadding="4">'

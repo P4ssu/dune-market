@@ -33,7 +33,7 @@ from dune_market.popup import (
 from dune_market import __version__
 from dune_market.config import RemoteConfig
 from dune_market.scanner import Scanner
-from dune_market.search import render_search_html
+from dune_market.search import parse_query, render_search_html
 from dune_market.screens import exchange_tab_open
 from dune_market.store import PriceStore
 from dune_market.sync import SyncClient, start_sync_thread
@@ -197,7 +197,7 @@ class SearchWindow(QWidget):
         title = QLabel('<span style="color:#e6c984;font-size:8pt">DUNE MARKET · SEARCH PRICES</span>')
         title.setTextFormat(Qt.TextFormat.RichText)
         self.input = _SearchInput()
-        self.input.setPlaceholderText("Item name, e.g. cobalt paste")
+        self.input.setPlaceholderText("Item or category, e.g. cobalt paste or garment:5")
         self.input.setStyleSheet(
             "QLineEdit { background: #2a2217; color: #f1e8d2; border: 1px solid #967c46; border-radius: 5px;"
             " padding: 7px 10px; font-size: 13pt; selection-background-color: #967c46; }"
@@ -216,7 +216,8 @@ class SearchWindow(QWidget):
 
     def _refresh(self, text: str = "") -> None:
         now = self._now()
-        self._results.setText(render_search_html(text, self._store.search(text, now), now))
+        words, grade = parse_query(text)
+        self._results.setText(render_search_html(text, self._store.search(words, now, grade=grade), now))
         self.adjustSize()
 
     def paintEvent(self, event) -> None:

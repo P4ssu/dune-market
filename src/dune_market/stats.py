@@ -45,13 +45,14 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
     buys = [o for o in own if o.kind == "buy"]
     newest_buy = buys[-1] if recent(buys[-1] if buys else None) else None
     listings: list[int] | None = None
-    session: list[int] = []
+    session_rows: list[Observation] = []
     if newest_buy:
         listings = [o.price for o in buys if o.observed_at == newest_buy.observed_at and plausible(o)]
-        session = [
-            o.price for o in buys
+        session_rows = [
+            o for o in buys
             if newest_buy.observed_at - o.observed_at <= SESSION_WINDOW and plausible(o)
         ]
+    session = [o.price for o in session_rows]
 
     shown_sell = newest_sell if recent(newest_sell) and newest_sell.low is not None else None
 
@@ -59,6 +60,12 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         return o is not None and latest - o.observed_at <= SESSION_WINDOW
 
     lows = ([shown_sell.low] if in_last_session(shown_sell) else []) + (session if in_last_session(newest_buy) else [])
+    lowest = min(lows) if lows else None
+    # The Buy listing with that price (the newest of equal ones), for its expiry time.
+    cheapest_row = max(
+        (o for o in session_rows if o.price == lowest and o.expires_in_s is not None and in_last_session(newest_buy)),
+        key=lambda o: o.observed_at, default=None,
+    )
 
     # Trend of the Sell tab's low price against a scan at least TREND_MIN_AGE older; only shown when that
     # low price is part of the last session, so the arrow belongs to the number next to it.
@@ -84,7 +91,7 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
     oldest = min(shown, key=lambda o: o.observed_at)
     return ItemStats(
         key=key,
-        lowest=min(lows) if lows else None,
+        lowest=lowest,
         highest=max(session) if session else None,
         trend_pct=trend,
         listing_count=len(listings) if listings is not None else None,
@@ -94,6 +101,7 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         avg=avg if avg is not None else listing_avg,
         avg_at=newest_sell.observed_at if newest_sell else None,
         avg_from_listings=listing_avg is not None,
+        lowest_expires_at=cheapest_row.observed_at + timedelta(seconds=cheapest_row.expires_in_s) if cheapest_row else None,
     )
 
 

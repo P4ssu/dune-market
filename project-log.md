@@ -2,6 +2,11 @@
 
 Newer entries are at the top. Each entry: date, what was done, why. Add a new entry at the end of a session.
 
+## 2026-10-21 (session 9)
+
+- **Search: category words and grade filter.** Words now match the item name or the category, and `text:N` keeps grade N only (for example `garment:5`). Default result count raised from 8 to 12.
+- **Search shows when the cheapest listing expires.** The Buy tab parser already stored `expires_in_s` for every listing, so this costs the scanner nothing; the column is "–" when the last lowest comes from the Sell tab.
+
 ## 2026-10-21 (session 8)
 
 - **Last lowest and all-time lowest.** "Lowest" took the minimum of everything within 24 h of the newest scan (Sell tab LOW plus Buy listings), so an older low price stuck and it looked like an all-time low. Now "Last lowest" uses only the newest scan session (30 min). An extra "All-time lowest" line was tried and removed again (owner: too confusing); the popup shows only last lowest and average. The trend arrow is shown only when it belongs to the last lowest. Search window columns: last low, average.

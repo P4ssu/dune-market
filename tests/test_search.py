@@ -8,7 +8,7 @@ import pytest
 from dune_market.config import load_config
 from dune_market.hotkey import HotkeyListener, parse_hotkey
 from dune_market.models import ItemKey, Observation
-from dune_market.search import SEARCH_HINT, render_search_html
+from dune_market.search import SEARCH_HINT, parse_query, render_search_html
 from dune_market.store_sqlite import SqliteStore
 
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
@@ -106,6 +106,31 @@ def test_search_ranks_names_that_start_with_the_query_first(store):
     assert names(store.search("spice", NOW))[0] == "Spice Sand"
 
 
+def test_search_matches_the_category_too(store):
+    assert set(names(store.search("garment", NOW))) == {"Robeofthe Sisterhood"}
+    assert set(names(store.search("lightarmor robe", NOW))) == {"Robeofthe Sisterhood"}
+
+
+def test_search_can_keep_one_grade_only(store):
+    results = store.search("cobalt", NOW, grade="3")
+    assert [(s.key.name, s.key.grade) for s in results] == [("Cobalt Paste", "3")]
+    assert store.search("cobalt", NOW, grade="5") == []
+
+
+def test_parse_query_reads_the_grade_after_a_colon():
+    assert parse_query("garment:5") == ("garment", "5")
+    assert parse_query("cobalt paste : 3") == ("cobalt paste ", "3")
+    assert parse_query("cobalt") == ("cobalt", None)
+    assert parse_query("weird:name") == ("weird:name", None)
+
+
+def test_render_shows_when_the_cheapest_listing_expires(store):
+    store.add([Observation(ItemKey("Spice Melange", "MISC - FUEL", "unknown"), "buy", NOW - timedelta(hours=1), "Mari",
+                           price=900, expires_in_s=3 * 86400 + 3 * 3600)])
+    html = render_search_html("melange", store.search("melange", NOW), NOW)
+    assert "EXPIRES" in html and "3 d 2 h" in html
+
+
 def test_search_limits_the_number_of_rows(store):
     assert len(store.search("a", NOW, limit=3)) == 3
 
@@ -163,6 +188,8 @@ def test_search_window_filters_as_you_type_and_closes_on_escape(store):
     assert window.isVisible() and SEARCH_HINT in window.results_text()
     window.input.setText("cobalt")
     assert "Cobalt Paste" in window.results_text() and "Calibrated" not in window.results_text()
+    window.input.setText("cobalt:3")
+    assert "25,000" in window.results_text() and "19,283" not in window.results_text()  # grade 3 only
     QTest.keyClick(window.input, Qt.Key.Key_Escape)
     assert not window.isVisible()
     window.open_search()
