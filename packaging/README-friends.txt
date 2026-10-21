@@ -6,9 +6,9 @@ A small free tool that shows Exchange (market) prices right in the game:
   * Hover an item or blueprint in your inventory -> a popup shows the lowest price of the
     last scan, the average price, the price trend and how fresh the data is,
     for that item's grade.
-  * Press Ctrl+Shift+F -> a search box opens. Type an item name or category and see its prices
+  * Press Ctrl+Shift+F -> a search box opens. Type an item name and see its prices
     and when the cheapest listing expires. Add a colon and a grade for one grade only,
-    for example  garment:5
+    for example  cobalt paste:5
   * A gold "D" icon sits in the tray (bottom right of the taskbar). Right-click it to search,
     pause the popups or the scanning, open the log file (dune-market.log) or quit.
   * Whenever you open the Exchange (Buy / Sell tab), the tool reads the prices on your screen and

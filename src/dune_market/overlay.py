@@ -197,7 +197,7 @@ class SearchWindow(QWidget):
         title = QLabel('<span style="color:#e6c984;font-size:8pt">DUNE MARKET · SEARCH PRICES</span>')
         title.setTextFormat(Qt.TextFormat.RichText)
         self.input = _SearchInput()
-        self.input.setPlaceholderText("Item or category, e.g. cobalt paste or garment:5")
+        self.input.setPlaceholderText("Item name, e.g. cobalt paste or cobalt paste:5")
         self.input.setStyleSheet(
             "QLineEdit { background: #2a2217; color: #f1e8d2; border: 1px solid #967c46; border-radius: 5px;"
             " padding: 7px 10px; font-size: 13pt; selection-background-color: #967c46; }"

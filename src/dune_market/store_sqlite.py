@@ -70,9 +70,7 @@ class SqliteStore:
 
     def _connect(self) -> sqlite3.Connection:
         # A connection per call keeps the store usable from the scanner, overlay and sync threads.
-        db = sqlite3.connect(self._path)
-        db.create_function("name_key", 1, name_key, deterministic=True)  # lets search match categories too
-        return db
+        return sqlite3.connect(self._path)
 
     def add(self, observations: list[Observation]) -> None:
         rows = [_values(o, uuid.uuid4().hex, 0) for o in observations]
@@ -106,7 +104,7 @@ class SqliteStore:
         return stats_by_grade([_to_observation(r) for r in rows], now)
 
     def search(self, query: str, now: datetime, limit: int = 12, grade: str | None = None) -> list[ItemStats]:
-        """Items whose name or category contains every word of `query` (ignoring case and spacing), best matches first.
+        """Items whose name contains every word of `query` (ignoring case and spacing), best matches first.
 
         One entry per grade (only `grade` if given); names that start with the first word come first, then
         shorter names, then the most recently updated.
@@ -114,11 +112,10 @@ class SqliteStore:
         keys = [k for k in (name_key(word) for word in query.split()) if k]
         if not keys:
             return []
-        # name_key holds only a-z and 0-9, so the words cannot contain LIKE wildcards.
-        where = " AND ".join("(name_key LIKE ? OR name_key(category) LIKE ?)" for _ in keys)
+        where = " AND ".join("name_key LIKE ?" for _ in keys)  # name_key holds only a-z and 0-9
         with self._connect() as db:
             rows = db.execute(
-                f"SELECT {_COLUMNS}, name_key FROM observations WHERE {where}", [f"%{k}%" for k in keys for _ in (1, 2)]
+                f"SELECT {_COLUMNS}, name_key FROM observations WHERE {where}", [f"%{k}%" for k in keys]
             ).fetchall()
         groups: dict[tuple[str, str], list[Observation]] = {}
         for row in rows:

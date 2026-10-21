@@ -4,7 +4,7 @@ Newer entries are at the top. Each entry: date, what was done, why. Add a new en
 
 ## 2026-10-21 (session 9)
 
-- **Search: category words and grade filter.** Words now match the item name or the category, and `text:N` keeps grade N only (for example `garment:5`). Default result count raised from 8 to 12.
+- **Search: grade filter.** `name:N` keeps grade N only (for example `cobalt paste:5`). Matching categories as well was tried and removed again (owner: words must match the item name only). Default result count raised from 8 to 12.
 - **Search shows when the cheapest listing expires.** The Buy tab parser already stored `expires_in_s` for every listing, so this costs the scanner nothing; the column is "–" when the last lowest comes from the Sell tab.
 
 ## 2026-10-21 (session 8)

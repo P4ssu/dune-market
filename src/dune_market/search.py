@@ -5,7 +5,7 @@ from datetime import datetime
 from dune_market.models import ItemStats
 from dune_market.popup import AMBER, GOLD, GREEN, MUTED, RED, TEXT, _age, _esc
 
-SEARCH_HINT = "Type an item name or category; add :5 for grade 5 (e.g. garment:5)"
+SEARCH_HINT = "Type an item name; add :5 for grade 5 only (e.g. cobalt paste:5)"
 
 
 def parse_query(query: str) -> tuple[str, str | None]:

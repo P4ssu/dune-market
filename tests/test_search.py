@@ -106,9 +106,8 @@ def test_search_ranks_names_that_start_with_the_query_first(store):
     assert names(store.search("spice", NOW))[0] == "Spice Sand"
 
 
-def test_search_matches_the_category_too(store):
-    assert set(names(store.search("garment", NOW))) == {"Robeofthe Sisterhood"}
-    assert set(names(store.search("lightarmor robe", NOW))) == {"Robeofthe Sisterhood"}
+def test_search_does_not_match_the_category(store):
+    assert store.search("garment", NOW) == []  # "GARMENTS - LIGHTARMOR" is the robe's category, not its name
 
 
 def test_search_can_keep_one_grade_only(store):

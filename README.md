@@ -6,7 +6,7 @@ An unofficial, free Windows tool that reads the Exchange (market) screens and sh
 
 - **Hover an item** in your inventory: lowest price of the last scan, average price, trend and data age, per grade.
 - **Tray icon** (bottom right of the taskbar): search, pause popups or scanning, open the log, quit.
-- **Ctrl+Shift+F**: search any item or category and see its prices; `garment:5` shows grade 5 only. The search also shows when the cheapest listing expires.
+- **Ctrl+Shift+F**: search any item by name and see its prices; `cobalt paste:5` shows grade 5 only. The search also shows when the cheapest listing expires.
 - **Shared prices:** what one player scans in the Buy / Sell tabs is shared with the group through a small shared database.
 
 > **Unofficial.** Not made or endorsed by Funcom, and Funcom has not confirmed that screen-reading tools are allowed.
