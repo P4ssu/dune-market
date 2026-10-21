@@ -23,7 +23,7 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
 
     "Lowest" is the cheapest price of the newest scan session only (the Sell tab LOW and Buy tab rows
     read within SESSION_WINDOW of the newest observation), so an older low price does not hide today's
-    price; the cheapest price ever seen is kept separately as the all-time low.
+    price.
     """
     own = sorted((o for o in observations if _ident(o.key) == _ident(key)), key=lambda o: o.observed_at)
     if not own:
@@ -79,16 +79,6 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         usual = [p for p in session if middle / LOW_OUTLIER_FACTOR <= p <= middle * LOW_OUTLIER_FACTOR]
         listing_avg = round(statistics.mean(usual))
 
-    # All-time low over every scan. Without the game's average, Buy prices far below the median of all
-    # listings (likely misreads) are left out.
-    every_listing = [o for o in buys if plausible(o)]
-    if avg is None and every_listing:
-        middle = statistics.median(o.price for o in every_listing)
-        every_listing = [o for o in every_listing if o.price >= middle / LOW_OUTLIER_FACTOR]
-    candidates = [(s.low, s.observed_at) for s in sells if s.low] + [(o.price, o.observed_at) for o in every_listing]
-    # The cheapest price; of equal ones the newest.
-    all_time_low = min(candidates, key=lambda c: (c[0], -c[1].timestamp())) if candidates else None
-
     # The data is as old as the oldest value the popup shows.
     shown = [o for o in (shown_sell, newest_buy if session else None) if o] or [own[-1]]
     oldest = min(shown, key=lambda o: o.observed_at)
@@ -104,8 +94,6 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         avg=avg if avg is not None else listing_avg,
         avg_at=newest_sell.observed_at if newest_sell else None,
         avg_from_listings=listing_avg is not None,
-        all_time_low=all_time_low[0] if all_time_low else None,
-        all_time_low_at=all_time_low[1] if all_time_low else None,
     )
 
 

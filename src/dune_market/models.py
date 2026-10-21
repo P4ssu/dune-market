@@ -77,5 +77,3 @@ class ItemStats:
     avg: int | None = None  # the game's average price from the newest Sell tab scan, however old
     avg_at: datetime | None = None  # when that scan was made
     avg_from_listings: bool = False  # no Sell scan: `avg` is the mean of the Buy tab listings seen instead
-    all_time_low: int | None = None  # the cheapest price ever seen for this item key
-    all_time_low_at: datetime | None = None

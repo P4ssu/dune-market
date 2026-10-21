@@ -31,12 +31,6 @@ def test_popup_trend_down_and_flat():
     assert "Last lowest: 9,800" in format_popup("X", [stats(trend=None)], NOW)
 
 
-def test_popup_shows_the_all_time_low_with_its_age():
-    from dataclasses import replace
-
-    lines = format_popup("X", [replace(stats(), all_time_low=7_000, all_time_low_at=NOW - timedelta(days=4))], NOW)
-    assert lines[2:4] == ["Last lowest: 9,800 ▲ 8%", "All-time lowest: 7,000 (4 d ago)"]
-
 
 def test_popup_marks_an_average_older_than_the_rest():
     from dataclasses import replace

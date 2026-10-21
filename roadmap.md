@@ -15,7 +15,7 @@ Update this file when something gets done or the plan changes. History and reaso
 - Release 1.2.1: hover popups also work in chests/storage (213 tests pass).
 - Scanner reliability fix (reads one-row and in-place changes, waits for the list to settle, median guard), popup shows lowest + average (last known, with age), tray icon, log file; release 1.3.0.
 - Release 1.3.1: average from Buy tab listings when the item was never on the Sell tab.
-- Popup shows last lowest (newest scan session) and all-time lowest separately.
+- Popup shows last lowest (newest scan session only) and average.
 
 ## In progress
 

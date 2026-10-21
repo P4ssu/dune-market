@@ -4,7 +4,7 @@ Live Exchange prices inside **Dune: Awakening**, for a group of friends.
 
 An unofficial, free Windows tool that reads the Exchange (market) screens and shows prices right in the game:
 
-- **Hover an item** in your inventory: lowest price of the last scan, all-time lowest, average price, trend and data age, per grade.
+- **Hover an item** in your inventory: lowest price of the last scan, average price, trend and data age, per grade.
 - **Tray icon** (bottom right of the taskbar): search, pause popups or scanning, open the log, quit.
 - **Ctrl+Shift+F**: search any item and see its prices.
 - **Shared prices:** what one player scans in the Buy / Sell tabs is shared with the group through a small shared database.
