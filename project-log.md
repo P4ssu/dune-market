@@ -2,6 +2,15 @@
 
 Newer entries are at the top. Each entry: date, what was done, why. Add a new entry at the end of a session.
 
+## 2026-10-21 (session 6)
+
+- **Scanner missed changes.** The owner saw price updates stop now and then. Cause: change detection compared each frame with the previous one using a whole-screen mean on a 64x40 thumbnail. One row appearing (0.57) or prices changing in place (0.49) stayed under the threshold of 1.0, and slow changes (rows loading one by one, the tab bar fading in) slipped through one small step at a time, so the settled list was never read. Now the list area is compared with the last *read* copy (share of changed pixels, threshold 0.002; one row is about 0.007), and it is read only once it has stopped moving. A held-back "misread" price triggers up to two re-reads of the same list, and the guard compares with the median of the last 5 Sell scans so one stored misread no longer blocks correct values.
+- **Faster frame checks.** `content_box` shrinks the frame in PIL and caches the answer per frame: a scanner tick went from about 48 ms to about 10 ms (hover benefits too).
+- **Popup and search show the last known lowest price and the average** (first tried lowest + highest instead of the average; the owner asked to keep the average next to the lowest). Highest is still computed (`ItemStats.highest`) but not shown. The average is the newest Sell scan's however old; when it is more than a day older than the other numbers, its own age is shown next to it. Old values are no longer dropped after 24 h; they are shown with their age and "(old)". The trend arrow now follows the Sell tab low price.
+- **Tray icon** (gold "D"): search, pause popups, pause scanning, open log, quit. **Log file** `dune-market.log` next to the program (1 MB, one backup) with every scan and held-back value.
+- **Name:** `config.toml` said `contributor = "Kiril"` (since 2026-10-19 about 15:00; earlier rows were "Passu"). Changed to "Passu" and renamed the 9098 local rows (backup made first). Rows already in Supabase stay "Kiril" for friends (the table is add-only).
+- 224 tests pass. **Release 1.3.0.**
+
 ## 2026-10-19 (session 5)
 
 - **Chest hover fix.** Hovering items in chests/storage showed no price popup: the storage screen has the same Q/E tab bar as the Exchange, only about 0.012 of the width nearer the middle, so `exchange_tab_open` called it the Exchange and the popup stayed silent on purpose. The check now looks at narrow strips only the Exchange's key boxes fill (Exchange 0.38-0.40, chest 0.09-0.12; threshold 0.25). Test on the four chest screenshots added; 213 tests pass.

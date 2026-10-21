@@ -67,10 +67,12 @@ class Observation:
 @dataclass(frozen=True)
 class ItemStats:
     key: ItemKey
-    avg: int | None
-    cheapest: int | None
-    trend_pct: float | None
+    lowest: int | None  # last known cheapest listing (Sell tab LOW or Buy tab)
+    highest: int | None  # last known most expensive listing seen on the Buy tab
+    trend_pct: float | None  # change of the Sell tab low price
     listing_count: int | None
     updated_at: datetime
     contributor: str
     stale: bool
+    avg: int | None = None  # the game's average price from the newest Sell tab scan, however old
+    avg_at: datetime | None = None  # when that scan was made

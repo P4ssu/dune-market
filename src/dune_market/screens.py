@@ -33,7 +33,7 @@ def classify(words: list[Word]) -> Screen:
 # 0.012 of the width closer to the middle, so these are narrow strips that only the Exchange's boxes fill.
 # Fractions of the picture (left, top, right, bottom).
 _KEY_BOXES = ((0.376, 0.020, 0.392, 0.074), (0.608, 0.020, 0.624, 0.074))
-_MIN_GOLD = 0.25  # measured: Exchange 0.38-0.40, chest 0.09-0.12, inventory 0.00-0.07, other screens 0.00
+MIN_GOLD = 0.25  # measured: Exchange 0.38-0.40, chest 0.09-0.12, inventory 0.00-0.07, other screens 0.00
 
 
 def bar_scores(frame: Image.Image) -> tuple[float, float]:
@@ -48,4 +48,4 @@ def bar_scores(frame: Image.Image) -> tuple[float, float]:
 
 def exchange_tab_open(frame: Image.Image) -> bool:
     """True when the Exchange tab bar (BUY / SELL / MY ORDERS) is on screen. Pixels only: a few milliseconds."""
-    return all(score >= _MIN_GOLD for score in bar_scores(frame))
+    return all(score >= MIN_GOLD for score in bar_scores(frame))

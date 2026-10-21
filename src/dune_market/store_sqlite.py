@@ -86,6 +86,16 @@ class SqliteStore:
             ).fetchone()
         return _to_observation(row) if row else None
 
+    def recent_sells(self, key: ItemKey, limit: int) -> list[Observation]:
+        """The newest Sell scans of `key`, newest first."""
+        with self._connect() as db:
+            rows = db.execute(
+                f"SELECT {_COLUMNS} FROM observations WHERE name_key=? AND category=? AND grade=? "
+                "AND kind='sell' ORDER BY observed_at DESC LIMIT ?",
+                (name_key(key.name), key.category, key.grade, limit),
+            ).fetchall()
+        return [_to_observation(r) for r in rows]
+
     def lookup(self, name: str, category: str, now: datetime) -> list[ItemStats]:
         with self._connect() as db:
             rows = db.execute(

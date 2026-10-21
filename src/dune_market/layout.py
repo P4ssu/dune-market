@@ -9,14 +9,26 @@ import numpy as np
 from PIL import Image
 
 _BAR_BRIGHTNESS = 6  # mean grey level (0-255) of a row or column at or below which it counts as a black bar
-_STEP = 4  # sample every 4th pixel; the bars are tens of pixels thick
+_STEP = 4  # look at 4x4 pixel blocks; the bars are tens of pixels thick
+_last: tuple[Image.Image | None, tuple[int, int, int, int]] = (None, (0, 0, 0, 0))  # one frame is asked about several times
 
 
 def content_box(frame: Image.Image) -> tuple[int, int, int, int]:
     """(left, top, right, bottom) of the picture without black bars; the whole frame if none are found."""
+    global _last
+    cached_frame, cached_box = _last
+    if cached_frame is frame:
+        return cached_box
+    box = _find_content_box(frame)
+    _last = (frame, box)
+    return box
+
+
+def _find_content_box(frame: Image.Image) -> tuple[int, int, int, int]:
     width, height = frame.size
     whole = (0, 0, width, height)
-    sample = np.asarray(frame)[::_STEP, ::_STEP].mean(axis=2)
+    # Shrinking in PIL first is several times faster than turning the whole frame into an array.
+    sample = np.asarray(frame.reduce(_STEP).convert("L"), dtype=np.float32)
     rows = np.nonzero(sample.mean(axis=1) > _BAR_BRIGHTNESS)[0]
     cols = np.nonzero(sample.mean(axis=0) > _BAR_BRIGHTNESS)[0]
     if rows.size == 0 or cols.size == 0:

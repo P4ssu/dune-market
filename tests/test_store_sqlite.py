@@ -17,11 +17,17 @@ def test_sqlite_roundtrip(tmp_path):
     store.add([sell(1, 100, 80)])
     reopened = SqliteStore(path)
     (stats,) = reopened.lookup("Cobalt Paste", "MISC - REFINEDRESOURCES", NOW)
-    assert (stats.avg, stats.cheapest, stats.contributor) == (100, 80, "Mari")
+    assert (stats.avg, stats.lowest, stats.contributor) == (100, 80, "Mari")
 
 
 def test_lookup_unknown_item_is_empty(tmp_path):
     assert SqliteStore(str(tmp_path / "p.db")).lookup("Nothing", "X - Y", NOW) == []
+
+
+def test_recent_sells_newest_first(tmp_path):
+    store = SqliteStore(str(tmp_path / "p.db"))
+    store.add([sell(5, 100, 80), sell(1, 120, 90), sell(3, 110, 85)])
+    assert [s.avg for s in store.recent_sells(KEY, 2)] == [120, 110]
 
 
 def test_latest_sell_returns_newest(tmp_path):

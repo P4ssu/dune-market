@@ -18,9 +18,19 @@ def _ident(key: ItemKey) -> tuple[str, str, str]:
 
 
 def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) -> ItemStats | None:
+    """The last known lowest and highest price of one item key (grade), however old they are.
+
+    Only values from about the same time as the newest observation count, so a week-old Sell tab
+    low price does not undercut today's Buy tab listings.
+    """
     own = sorted((o for o in observations if _ident(o.key) == _ident(key)), key=lambda o: o.observed_at)
     if not own:
         return None
+    latest = own[-1].observed_at
+
+    def recent(o: Observation | None) -> bool:
+        return o is not None and latest - o.observed_at <= STALE_AFTER
+
     sells = [o for o in own if o.kind == "sell"]
     newest_sell = sells[-1] if sells else None
     avg = newest_sell.avg if newest_sell else None
@@ -28,10 +38,10 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
     def plausible(o: Observation) -> bool:
         return not (avg and (o.price > avg * OUTLIER_FACTOR or o.price < avg / LOW_OUTLIER_FACTOR))
 
-    # Buy listings come from scans within the staleness window. The count uses the
-    # newest scan only; "cheapest" also looks at the scans of the same scroll session.
-    buys = [o for o in own if o.kind == "buy" and now - o.observed_at <= STALE_AFTER]
-    newest_buy = buys[-1] if buys else None
+    # The count uses the newest Buy scan only; lowest and highest also look at the scans of the same
+    # scroll session (one scan sees about five rows of a longer list).
+    buys = [o for o in own if o.kind == "buy"]
+    newest_buy = buys[-1] if recent(buys[-1] if buys else None) else None
     listings: list[int] | None = None
     session: list[int] = []
     if newest_buy:
@@ -41,30 +51,33 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
             if newest_buy.observed_at - o.observed_at <= SESSION_WINDOW and plausible(o)
         ]
 
-    fresh_sell = newest_sell if newest_sell and now - newest_sell.observed_at <= STALE_AFTER else None
-    candidates = ([fresh_sell.low] if fresh_sell and fresh_sell.low is not None else []) + session
+    shown_sell = newest_sell if recent(newest_sell) and newest_sell.low is not None else None
+    lows = ([shown_sell.low] if shown_sell else []) + session
 
+    # Trend of the Sell tab's low price against a scan at least TREND_MIN_AGE older.
     trend = None
-    if newest_sell and avg:
+    if shown_sell and shown_sell.low:
         older = [
             s for s in sells
-            if s.observed_at <= newest_sell.observed_at - TREND_MIN_AGE and now - s.observed_at <= TREND_MAX_AGE
+            if s.low and s.observed_at <= shown_sell.observed_at - TREND_MIN_AGE and now - s.observed_at <= TREND_MAX_AGE
         ]
-        if older and older[-1].avg:
-            trend = round((avg - older[-1].avg) / older[-1].avg * 100, 1)
+        if older:
+            trend = round((shown_sell.low - older[-1].low) / older[-1].low * 100, 1)
 
     # The data is as old as the oldest value the popup shows.
-    shown = [o for o in (newest_sell, newest_buy) if o] or [own[-1]]
+    shown = [o for o in (shown_sell, newest_buy if session else None) if o] or [own[-1]]
     oldest = min(shown, key=lambda o: o.observed_at)
     return ItemStats(
         key=key,
-        avg=avg,
-        cheapest=min(candidates) if candidates else None,
+        lowest=min(lows) if lows else None,
+        highest=max(session) if session else None,
         trend_pct=trend,
         listing_count=len(listings) if listings is not None else None,
         updated_at=oldest.observed_at,
         contributor=oldest.contributor,
         stale=now - oldest.observed_at > STALE_AFTER,
+        avg=avg,
+        avg_at=newest_sell.observed_at if newest_sell else None,
     )
 
 

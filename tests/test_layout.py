@@ -42,6 +42,7 @@ def test_banner_found_without_black_bars(friend_frame):
 def test_scanner_reads_the_sell_tab_on_a_frame_without_black_bars(friend_frame, tmp_path):
     frame = friend_frame("sell")
     scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Friend", grab=lambda: frame)
+    scanner.scan_once(NOW)  # first frame: waits for the list to settle
     assert scanner.scan_once(NOW) >= 5
     assert scanner.last_label == "Sell tab"
 
@@ -49,6 +50,7 @@ def test_scanner_reads_the_sell_tab_on_a_frame_without_black_bars(friend_frame, 
 def test_scanner_reads_the_buy_tab_on_a_frame_without_black_bars(friend_frame, tmp_path):
     frame = friend_frame("buy tab")
     scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Friend", grab=lambda: frame)
+    scanner.scan_once(NOW)
     assert scanner.scan_once(NOW) >= 4
     assert scanner.last_label.startswith("Buy tab")
 

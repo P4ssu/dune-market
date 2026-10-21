@@ -5,7 +5,7 @@ import pytest
 from PIL import Image
 
 from dune_market.models import ItemKey, Observation
-from dune_market.scanner import Scanner, accept, observations_from_words
+from dune_market.scanner import Scanner, accept, observations_from_words, typical_sell
 from dune_market.store_sqlite import SqliteStore
 
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
@@ -59,13 +59,22 @@ def test_guard_accepts_value_seen_twice(shot_words, tmp_path):
     ]
     store = SqliteStore(str(tmp_path / "p.db"))
     store.add([sell_obs(56_359, 46_000)])
-    frames = iter([frame(10), frame(60)])
-    scanner = Scanner(store, "Mari", exchange_open=lambda f: True, grab=lambda: next(frames), read=lambda image, offset=(0, 0): words)
+    scanner = Scanner(store, "Mari", exchange_open=lambda f: True, grab=lambda: frame(10), read=lambda image, offset=(0, 0): words)
 
+    assert scanner.scan_once(NOW) == 0  # first frame: waits for the list to settle
     assert scanner.scan_once(NOW) == 5  # the other five rows; the odd value is held back
     assert store.latest_sell(FABRIC).avg == 56_359
+    # The list did not change, but a held-back price makes the scanner read it once more.
     assert scanner.scan_once(NOW + timedelta(seconds=1)) == 6  # seen twice: now accepted
     assert store.latest_sell(FABRIC).avg == 4_000
+    assert scanner.scan_once(NOW + timedelta(seconds=2)) == 0  # nothing owed any more: no third read
+
+
+def test_guard_compares_with_the_median_so_one_stored_misread_does_not_block(shot_words, tmp_path):
+    store = SqliteStore(str(tmp_path / "p.db"))
+    store.add([sell_obs(56_000, 46_000), sell_obs(57_000, 46_500), replace(sell_obs(560, 460), observed_at=NOW + timedelta(seconds=1))])
+    assert accept(sell_obs(56_359, 46_000), typical_sell(store.recent_sells(FABRIC, 5))) is True
+    assert typical_sell([]) is None
 
 
 def test_scan_once_with_black_frame_stores_nothing(tmp_path):
@@ -91,8 +100,47 @@ def test_unchanged_frame_is_not_rescanned(shot_words, tmp_path):
     store = SqliteStore(str(tmp_path / "p.db"))
     words = shot_words("sell")
     scanner = Scanner(store, "Mari", exchange_open=lambda f: True, grab=lambda: frame(10), read=lambda image, offset=(0, 0): words)
+    scanner.scan_once(NOW)
     assert scanner.scan_once(NOW) == 6
     assert scanner.scan_once(NOW + timedelta(seconds=1)) == 0
+
+
+def list_frame(rows: int) -> Image.Image:
+    """A list-like frame: `rows` bright bars on a dark background inside the scanned area."""
+    image = Image.new("RGB", (1600, 1000), (12, 12, 12))
+    for i in range(rows):
+        image.paste((200, 190, 160), (100, 200 + i * 80, 1000, 230 + i * 80))
+    return image
+
+
+def test_one_new_row_is_read_even_though_the_rest_of_the_screen_is_the_same(tmp_path):
+    reads = []
+    frames = iter([list_frame(5), list_frame(5), list_frame(6), list_frame(6)])
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: next(frames),
+                      read=lambda image, offset=(0, 0): reads.append(1) or [])
+    for _ in range(4):
+        scanner.scan_once(NOW)
+    assert len(reads) == 2  # the five-row list, then again once the sixth row appeared and settled
+
+
+def test_a_moving_list_is_read_only_after_it_settles(tmp_path):
+    reads = []
+    frames = iter([list_frame(1), list_frame(2), list_frame(3), list_frame(4), list_frame(4)])
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: next(frames),
+                      read=lambda image, offset=(0, 0): reads.append(1) or [])
+    for _ in range(5):
+        scanner.scan_once(NOW)
+    assert len(reads) == 1  # rows popping in one by one: one read of the finished list
+
+
+def test_list_that_settles_while_the_exchange_bar_fades_in_is_still_read(tmp_path):
+    reads = []
+    bar = iter([False, False, True])
+    scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: next(bar), grab=lambda: list_frame(5),
+                      read=lambda image, offset=(0, 0): reads.append(1) or [])
+    for _ in range(3):
+        scanner.scan_once(NOW)
+    assert len(reads) == 1  # the old check had already used up this frame while the bar was not yet detected
 
 
 def test_guard_rejects_low_price_jump():
@@ -131,6 +179,7 @@ def test_scanner_describes_what_it_just_read(shot_words, tmp_path):
     scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: big,
                       read=lambda image, offset=(0, 0), scale=1: shot_words("sell"))
     scanner.scan_once(NOW)
+    scanner.scan_once(NOW)
     assert scanner.last_label == "Sell tab"
     assert scanner.last_rows == 6
 
@@ -139,5 +188,6 @@ def test_scanner_label_for_buy_tab_names_category_and_grade(shot_words, tmp_path
     big = Image.new("RGB", (2560, 1600), (10, 10, 10))
     scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: big,
                       read=lambda image, offset=(0, 0), scale=1: shot_words("buy tab"))
+    scanner.scan_once(NOW)
     scanner.scan_once(NOW)
     assert scanner.last_label == "Buy tab · GARMENTS - LIGHTARMOR · all grades"

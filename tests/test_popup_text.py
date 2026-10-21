@@ -10,25 +10,36 @@ from dune_market.store_sqlite import SqliteStore
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
 
 
-def stats(grade="unknown", avg=12_400, cheapest=9_800, trend=8.0, count=14, hours=2, stale=False, who="Mari"):
-    return ItemStats(ItemKey("Maula Pistol Blueprint", "SCHEMATIC - UNIQUE", grade), avg, cheapest, trend, count,
-                     NOW - timedelta(hours=hours), who, stale)
+def stats(grade="unknown", lowest=9_800, avg=12_400, trend=8.0, count=14, hours=2, stale=False, who="Mari"):
+    return ItemStats(ItemKey("Maula Pistol Blueprint", "SCHEMATIC - UNIQUE", grade), lowest, 15_000, trend, count,
+                     NOW - timedelta(hours=hours), who, stale, avg)
 
 
 def test_popup_full_data():
     assert format_popup("Maula Pistol Blueprint", [stats()], NOW) == [
         "Maula Pistol Blueprint",
         "Grade unknown",
-        "Avg price: 12,400 ▲ 8%",
-        "Cheapest now: 9,800",
+        "Lowest: 9,800 ▲ 8%",
+        "Average: 12,400",
         "Listings: 14",
         "Updated 2 h ago by Mari",
     ]
 
 
 def test_popup_trend_down_and_flat():
-    assert "Avg price: 12,400 ▼ 3%" in format_popup("X", [stats(trend=-3.0)], NOW)
-    assert "Avg price: 12,400" in format_popup("X", [stats(trend=None)], NOW)
+    assert "Lowest: 9,800 ▼ 3%" in format_popup("X", [stats(trend=-3.0)], NOW)
+    assert "Lowest: 9,800" in format_popup("X", [stats(trend=None)], NOW)
+
+
+def test_popup_marks_an_average_older_than_the_rest():
+    from dataclasses import replace
+
+    lines = format_popup("X", [replace(stats(hours=1), avg_at=NOW - timedelta(days=3))], NOW)
+    assert "Average: 12,400 (3 d ago)" in lines
+
+
+def test_popup_without_sell_scan_says_average_is_unknown():
+    assert "Average: n/a" in format_popup("X", [stats(avg=None)], NOW)
 
 
 def test_popup_stale_marked_old():
@@ -49,7 +60,7 @@ def test_popup_grade_known_label():
 
 
 def test_popup_multiple_grades_listed():
-    lines = format_popup("X", [stats(grade="3", avg=500), stats(grade="unknown", avg=400)], NOW)
+    lines = format_popup("X", [stats(grade="3", lowest=500), stats(grade="unknown", lowest=400)], NOW)
     assert lines.count("Grade: 3") == 1 and lines.count("Grade unknown") == 1
     assert lines.index("Grade: 3") < lines.index("Grade unknown")
 
@@ -90,7 +101,7 @@ def dust_store(tmp_path):
 def test_hover_popup_shows_stats(shot_words, shot_image, tmp_path):
     popup = hover_popup(shot_image("item hover"), (842, 927), dust_store(tmp_path), NOW, fake_reader(shot_words("item hover")))
     assert popup.lines[0] == "Spice-infused Plastanium Dust"
-    assert "Avg price: 5,000" in popup.lines
+    assert "Lowest: 4,000" in popup.lines
     assert popup.y < 851  # placed above the tooltip banner, whose top border is at y=851
 
 
@@ -128,7 +139,7 @@ def test_hover_popup_real_ocr_reads_the_full_name(tmp_path):
         pytest.skip("missing screenshot item hover.png")
     popup = hover_popup(Image.open(path).convert("RGB"), (842, 927), dust_store(tmp_path), NOW, read_words)
     assert popup.lines[0] == "Spice-infused Plastanium Dust"
-    assert "Avg price: 5,000" in popup.lines
+    assert "Lowest: 4,000" in popup.lines
 
 
 def test_hover_popup_ocrs_only_small_crops(shot_words, shot_image, tmp_path):
@@ -190,4 +201,4 @@ def test_hover_popup_for_armor_reads_name_category_and_finds_prices(shot_image, 
                            price=1_200_000, expires_in_s=100)])
     popup = hover_popup(shot_image("armor popup"), (224, 928), store, NOW, read_words)
     assert popup is not None and popup.lines[0] == "Pincushion Helmet"
-    assert "Cheapest now: 1,200,000" in popup.lines
+    assert "Lowest: 1,200,000" in popup.lines

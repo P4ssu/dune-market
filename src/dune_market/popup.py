@@ -14,6 +14,7 @@ from dune_market.ocr import read_header, read_words
 from dune_market.banner import find_banner
 from dune_market.parse_tooltip import find_tooltip
 from dune_market.screens import exchange_tab_open
+from dune_market.stats import STALE_AFTER
 from dune_market.store import PriceStore
 
 log = logging.getLogger(__name__)
@@ -44,11 +45,14 @@ def _age(updated_at: datetime, now: datetime) -> str:
 
 def _block(s: ItemStats, now: datetime) -> list[str]:
     lines = ["Grade unknown" if s.key.grade == "unknown" else f"Grade: {s.key.grade}"]
-    avg = "n/a" if s.avg is None else f"{s.avg:,}"
-    if s.avg is not None and s.trend_pct:
-        avg += f" {'▲' if s.trend_pct > 0 else '▼'} {abs(s.trend_pct):g}%"
-    lines.append(f"Avg price: {avg}")
-    lines.append(f"Cheapest now: {'n/a' if s.cheapest is None else f'{s.cheapest:,}'}")
+    lowest = "n/a" if s.lowest is None else f"{s.lowest:,}"
+    if s.lowest is not None and s.trend_pct:
+        lowest += f" {'▲' if s.trend_pct > 0 else '▼'} {abs(s.trend_pct):g}%"
+    lines.append(f"Lowest: {lowest}")
+    average = "n/a" if s.avg is None else f"{s.avg:,}"
+    if s.avg is not None and s.avg_at and s.updated_at - s.avg_at > STALE_AFTER:
+        average += f" ({_age(s.avg_at, now)})"  # older than the other numbers
+    lines.append(f"Average: {average}")
     if s.listing_count is not None:
         lines.append(f"Listings: {s.listing_count}")
     lines.append(f"Updated {_age(s.updated_at, now)} by {s.contributor}" + (" (old)" if s.stale else ""))
@@ -239,7 +243,7 @@ def render_html(lines: list[str]) -> str:
             if match:
                 value, arrow, pct = match.groups()
                 trend = f' <span style="color:{GREEN if arrow == "▲" else RED}">{arrow} {_esc(pct)}</span>'
-            emphasis = GOLD if label.startswith("Cheapest") else TEXT
+            emphasis = GOLD if label == "Lowest" else TEXT
             rows.append(
                 f'<tr><td style="color:{MUTED}">{_esc(label)}</td>'
                 f'<td align="right" style="color:{emphasis};font-weight:600">{_esc(value)}{trend}</td></tr>'

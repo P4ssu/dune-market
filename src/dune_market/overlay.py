@@ -6,16 +6,18 @@ mode; exclusive fullscreen hides every other window.
 
 import ctypes
 import logging
+import os
 import signal
 import threading
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
+from pathlib import Path
 
 from PIL import Image
 from PyQt6.QtCore import QObject, QRectF, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PyQt6.QtGui import QColor, QFont, QGuiApplication, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
+from PyQt6.QtWidgets import QApplication, QLabel, QLineEdit, QMenu, QSystemTrayIcon, QVBoxLayout, QWidget
 
 from dune_market.banner import find_banner
 from dune_market.capture import cursor_position, game_is_active, grab_frame
@@ -57,6 +59,23 @@ def _draw_panel(widget: QWidget, solid: bool) -> None:
     painter.drawPath(path)
     painter.fillRect(QRectF(0, 12, 3, widget.height() - 24), QColor(214, 178, 96))
     painter.end()
+
+
+def tray_icon() -> QIcon:
+    """A small gold "D" on the dark panel colour, drawn here so the program needs no image file."""
+    pixmap = QPixmap(64, 64)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    path = QPainterPath()
+    path.addRoundedRect(QRectF(3, 3, 58, 58), 12, 12)
+    painter.fillPath(path, QColor(38, 31, 22))
+    painter.setPen(QPen(QColor(214, 178, 96), 4))
+    painter.drawPath(path)
+    painter.setFont(QFont("Segoe UI", 30, QFont.Weight.Bold))
+    painter.drawText(QRectF(0, 0, 64, 64), Qt.AlignmentFlag.AlignCenter, "D")
+    painter.end()
+    return QIcon(pixmap)
 
 
 class PopupWindow(QLabel):
@@ -305,6 +324,7 @@ def run_overlay(
     remote: RemoteConfig | None = None,
     search_hotkey: str = "ctrl+shift+f",
     auto_update: bool = True,
+    log_path: Path | None = None,
 ) -> None:
     """Show the hover popup; with a `contributor` name, also scan the Exchange and show in-game notices."""
     app = QApplication([])
@@ -334,6 +354,8 @@ def run_overlay(
         signals.show.connect(lambda popup: log.info("popup shown at (%s, %s)", popup.x, popup.y))
         signals.hide.connect(lambda: log.info("popup hidden"))
 
+    scan_paused = threading.Event()
+    popups_paused = threading.Event()
     lookup = make_lookup(store, debug=debug)
     tracker = HoverTracker(
         lookup=lookup,
@@ -346,7 +368,7 @@ def run_overlay(
     def hover_loop() -> None:
         while True:
             try:
-                if game_is_active():
+                if game_is_active() and not popups_paused.is_set():
                     tracker.tick(cursor_position(), time.monotonic())
             except Exception:
                 log.exception("hover loop error")
@@ -354,8 +376,9 @@ def run_overlay(
 
     threading.Thread(target=hover_loop, daemon=True).start()
 
+    scanner: Scanner | None = None
     if contributor:
-        scanner = Scanner(store, contributor, active=game_is_active)
+        scanner = Scanner(store, contributor, active=lambda: game_is_active() and not scan_paused.is_set())
 
         def scan_loop() -> None:
             last_explained = 0.0
@@ -365,6 +388,7 @@ def run_overlay(
                         last_explained = time.monotonic()
                         log.info("scanner is waiting for the Exchange: %s", scanner.explain())
                     if scanner.scan_once(datetime.now(timezone.utc)):
+                        log.info("scan: %s, %s rows, %s new", scanner.last_label, scanner.last_rows, scanner.last_new)
                         signals.toast.emit(
                             scan_toast_lines(scanner.last_label, scanner.last_rows, scanner.last_new, scanner.session_total)
                         )
@@ -399,6 +423,45 @@ def run_overlay(
 
     start_update_checks(__version__, on_update)
     what = "scanning and price popups" if contributor else "price popups"
+
+    # Tray icon: shows the program is running and gives a way to search, pause or quit without the console.
+    tray = QSystemTrayIcon(tray_icon(), app)
+    menu = QMenu()
+    menu.addAction(f"Search prices ({pretty})", search.open_search)
+    pause_popups = menu.addAction("Pause price popups")
+    pause_popups.setCheckable(True)
+
+    def toggle_popups(paused: bool) -> None:
+        popups_paused.set() if paused else popups_paused.clear()
+        if paused:
+            window.hide_popup()
+
+    pause_popups.toggled.connect(toggle_popups)
+    if scanner:
+        pause_scan = menu.addAction("Pause scanning")
+        pause_scan.setCheckable(True)
+        pause_scan.toggled.connect(lambda paused: scan_paused.set() if paused else scan_paused.clear())
+    if log_path:
+        menu.addAction("Open log file", lambda: os.startfile(log_path) if log_path.exists() else None)
+    menu.addSeparator()
+    menu.addAction("Quit Dune Market", app.quit)
+    tray.setContextMenu(menu)
+    tray.activated.connect(
+        lambda reason: search.toggle_search() if reason == QSystemTrayIcon.ActivationReason.DoubleClick else None
+    )
+
+    def refresh_tray_tip() -> None:
+        tip = f"Dune Market v{__version__}"
+        if scanner:
+            tip += " · scanning paused" if scan_paused.is_set() else f" · {scanner.session_total} items scanned this session"
+        tray.setToolTip(tip)
+
+    refresh_tray_tip()
+    tray_timer = QTimer()
+    tray_timer.timeout.connect(refresh_tray_tip)
+    tray_timer.start(5000)
+    tray.show()
     QTimer.singleShot(1500, lambda: show_notice([f"Dune Market v{__version__}", f"Running: {what}", search_note], 5.0))
-    print(f"Dune Market running ({what}).{sync_note or ' Prices stay on this computer only.'} {search_note}. Press Ctrl+C to stop.")
+    log.info("Dune Market %s started (%s)", __version__, what)
+    print(f"Dune Market running ({what}).{sync_note or ' Prices stay on this computer only.'} {search_note}. Tray icon (bottom right): pause or quit. Press Ctrl+C to stop.")
     app.exec()

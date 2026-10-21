@@ -122,6 +122,7 @@ def test_search_with_empty_or_unknown_text(store):
 def test_render_lists_name_grade_prices_and_age(store):
     html = render_search_html("cobalt", store.search("cobalt", NOW), NOW)
     assert "Cobalt Paste" in html and "19,283" in html and "8,900" in html and "20,000" in html
+    assert "LOWEST" in html and "AVG" in html
     assert ">3</td>" in html and ">unknown</td>" in html  # one row per grade
     assert "1 h ago" in html and "Mari" in html
 

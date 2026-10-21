@@ -20,11 +20,31 @@ def test_avg_is_newest_sell():
     assert stats.avg == 120
 
 
-def test_cheapest_uses_lower_of_sell_low_and_buy():
+def test_lowest_uses_lower_of_sell_low_and_buy():
     stats = compute_stats(KEY, [sell(1, 100, 80), buy(1, 70), buy(1, 95)], NOW)
-    assert stats.cheapest == 70
+    assert stats.lowest == 70
     stats = compute_stats(KEY, [sell(1, 100, 60), buy(1, 70)], NOW)
-    assert stats.cheapest == 60
+    assert stats.lowest == 60
+
+
+def test_highest_is_the_most_expensive_buy_listing():
+    stats = compute_stats(KEY, [sell(1, 100, 80), buy(1, 70), buy(1, 95)], NOW)
+    assert stats.highest == 95
+
+
+def test_last_known_average_is_kept_with_its_own_age():
+    stats = compute_stats(KEY, [sell(120, 8_900, 8_900), buy(0.02, 15_000)], NOW)
+    assert (stats.avg, stats.avg_at) == (8_900, NOW - timedelta(hours=120))
+
+
+def test_highest_unknown_without_buy_scan():
+    assert compute_stats(KEY, [sell(1, 100, 80)], NOW).highest is None
+
+
+def test_last_known_prices_are_kept_when_old():
+    stats = compute_stats(KEY, [buy(72, 70), buy(72, 95)], NOW)
+    assert (stats.lowest, stats.highest, stats.listing_count) == (70, 95, 2)
+    assert stats.stale is True
 
 
 def test_listing_count_from_newest_buy_scan():
@@ -36,8 +56,8 @@ def test_listing_count_none_without_buy_scan():
     assert compute_stats(KEY, [sell(1, 100, 80)], NOW).listing_count is None
 
 
-def test_trend_up_ten_percent():
-    stats = compute_stats(KEY, [sell(24, 100, 80), sell(0, 110, 90)], NOW)
+def test_trend_of_the_low_price_up_ten_percent():
+    stats = compute_stats(KEY, [sell(24, 100, 80), sell(0, 150, 88)], NOW)
     assert stats.trend_pct == 10.0
 
 
@@ -59,7 +79,8 @@ def test_updated_by_newest_contributor():
 
 def test_buy_outlier_ignored():
     stats = compute_stats(KEY, [sell(1, 10_000, 9_000), buy(1, 10_000_000), buy(1, 9_500)], NOW)
-    assert stats.cheapest == 9_000
+    assert stats.lowest == 9_000
+    assert stats.highest == 9_500
     assert stats.listing_count == 1
 
 
@@ -75,19 +96,20 @@ def test_stats_by_grade_one_entry_per_grade_newest_first():
 
 def test_buy_price_far_below_average_is_ignored():
     stats = compute_stats(KEY, [sell(1, 10_000, 9_000), buy(1, 1_000), buy(1, 9_500)], NOW)
-    assert stats.cheapest == 9_000
+    assert stats.lowest == 9_000
     assert stats.listing_count == 1
 
 
-def test_old_sell_low_is_not_shown_as_fresh():
+def test_old_sell_low_does_not_undercut_a_fresh_buy_scan():
     stats = compute_stats(KEY, [sell(120, 8_900, 8_900), buy(0.02, 15_000)], NOW)
-    assert stats.cheapest == 15_000
-    assert stats.stale is True
-    assert stats.updated_at == NOW - timedelta(hours=120)
+    assert stats.lowest == 15_000
+    assert stats.stale is False
+    assert stats.updated_at == NOW - timedelta(hours=0.02)
 
 
 def test_cheapest_spans_a_scroll_session_but_not_old_scans():
     obs = [buy(2, 50), buy(0.17, 100), buy(0.02, 200), buy(0.02, 210)]  # scans 2 h, 10 min, 1 min ago
     stats = compute_stats(KEY, obs, NOW)
-    assert stats.cheapest == 100  # the 2 h old scan is outside the session window
+    assert stats.lowest == 100  # the 2 h old scan is outside the session window
+    assert stats.highest == 210
     assert stats.listing_count == 2  # count still comes from the newest scan only

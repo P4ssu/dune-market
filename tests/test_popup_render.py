@@ -1,7 +1,7 @@
 from dune_market.popup import GOLD, GREEN, MUTED, RED, AMBER, render_html, scan_toast_lines
 
 FULL = [
-    "Maula Pistol Blueprint", "Grade: 1", "Avg price: 12,400 ▲ 8%", "Cheapest now: 9,800", "Listings: 14",
+    "Maula Pistol Blueprint", "Grade: 1", "Lowest: 9,800 ▲ 8%", "Average: 12,400", "Listings: 14",
     "Updated 2 h ago by Mari",
 ]
 
@@ -9,14 +9,14 @@ FULL = [
 def test_html_has_title_rows_and_green_up_arrow():
     html = render_html(FULL)
     assert "Maula Pistol Blueprint" in html and GOLD in html
-    assert "Avg price" in html and "12,400" in html and "Cheapest now" in html and "9,800" in html
+    assert "Lowest" in html and "9,800" in html and "Average" in html and "12,400" in html
     assert f'color:{GREEN}' in html and "▲" in html and "8%" in html
     assert "GRADE 1" in html
     assert "Updated 2 h ago by Mari" in html
 
 
 def test_html_down_arrow_is_red():
-    html = render_html(["X", "Grade unknown", "Avg price: 100 ▼ 3%"])
+    html = render_html(["X", "Grade unknown", "Lowest: 100 ▼ 3%"])
     assert f'color:{RED}' in html and "▼" in html and "GRADE UNKNOWN" in html
 
 
@@ -36,7 +36,7 @@ def test_html_escapes_ocr_text():
 
 
 def test_html_one_block_per_grade_with_divider():
-    html = render_html(["X", "Grade: 3", "Avg price: 5", "Grade unknown", "Avg price: 4"])
+    html = render_html(["X", "Grade: 3", "Lowest: 5", "Grade unknown", "Lowest: 4"])
     assert html.count("GRADE") == 2
 
 

@@ -2,6 +2,7 @@
 config.toml
 prices.db
 debug-last-frame.png
+dune-market.log*
 screenshots/
 
 # Build output and tooling

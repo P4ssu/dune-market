@@ -11,6 +11,10 @@ class PriceStore(Protocol):
 
     def latest_sell(self, key: ItemKey) -> Observation | None: ...
 
+    def recent_sells(self, key: ItemKey, limit: int) -> list[Observation]:
+        """The newest Sell scans of `key`, newest first."""
+        ...
+
     def lookup(self, name: str, category: str, now: datetime) -> list[ItemStats]:
         """One entry per grade, newest first; empty when the item is unknown."""
         ...
