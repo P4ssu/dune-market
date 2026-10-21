@@ -4,6 +4,7 @@ Newer entries are at the top. Each entry: date, what was done, why. Add a new en
 
 ## 2026-10-21 (session 9)
 
+- **Release 1.3.2** with sessions 8-9 (last lowest + average, search grade filter and expiry, no saving on GRADE: ALL).
 - **Buy tab on GRADE: ALL is no longer saved.** Its rows mix grades, so a price could not be filed under the right grade (it went in as "unknown"). The scanner still reads the list but saves nothing and shows an in-game notice "Buy tab is on GRADE: ALL - choose one grade" (at most every 30 s). An unreadable grade label counts as ALL. Rows saved earlier as "unknown" stay in the database.
 - **Search: grade filter.** `name:N` keeps grade N only (for example `cobalt paste:5`). Matching categories as well was tried and removed again (owner: words must match the item name only). Default result count raised from 8 to 12.
 - **Search shows when the cheapest listing expires.** The Buy tab parser already stored `expires_in_s` for every listing, so this costs the scanner nothing; the column is "–" when the last lowest comes from the Sell tab.
