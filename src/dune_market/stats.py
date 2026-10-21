@@ -1,5 +1,6 @@
 """Turn stored observations into the numbers the popup shows."""
 
+import statistics
 from datetime import datetime, timedelta
 
 from dune_market.models import ItemKey, ItemStats, Observation
@@ -64,6 +65,14 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         if older:
             trend = round((shown_sell.low - older[-1].low) / older[-1].low * 100, 1)
 
+    # Without a Sell scan the game's average is unknown; the mean of the listings seen stands in for it.
+    # Listings far from their median (joke prices, misreads) are left out so one of them cannot drag it.
+    listing_avg = None
+    if avg is None and session:
+        middle = statistics.median(session)
+        usual = [p for p in session if middle / LOW_OUTLIER_FACTOR <= p <= middle * LOW_OUTLIER_FACTOR]
+        listing_avg = round(statistics.mean(usual))
+
     # The data is as old as the oldest value the popup shows.
     shown = [o for o in (shown_sell, newest_buy if session else None) if o] or [own[-1]]
     oldest = min(shown, key=lambda o: o.observed_at)
@@ -76,8 +85,9 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         updated_at=oldest.observed_at,
         contributor=oldest.contributor,
         stale=now - oldest.observed_at > STALE_AFTER,
-        avg=avg,
+        avg=avg if avg is not None else listing_avg,
         avg_at=newest_sell.observed_at if newest_sell else None,
+        avg_from_listings=listing_avg is not None,
     )
 
 

@@ -52,6 +52,8 @@ def _block(s: ItemStats, now: datetime) -> list[str]:
     average = "n/a" if s.avg is None else f"{s.avg:,}"
     if s.avg is not None and s.avg_at and s.updated_at - s.avg_at > STALE_AFTER:
         average += f" ({_age(s.avg_at, now)})"  # older than the other numbers
+    if s.avg_from_listings:
+        average += " (listings)"
     lines.append(f"Average: {average}")
     if s.listing_count is not None:
         lines.append(f"Listings: {s.listing_count}")

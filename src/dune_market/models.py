@@ -76,3 +76,4 @@ class ItemStats:
     stale: bool
     avg: int | None = None  # the game's average price from the newest Sell tab scan, however old
     avg_at: datetime | None = None  # when that scan was made
+    avg_from_listings: bool = False  # no Sell scan: `avg` is the mean of the Buy tab listings seen instead

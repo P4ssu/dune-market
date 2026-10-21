@@ -38,6 +38,12 @@ def test_popup_marks_an_average_older_than_the_rest():
     assert "Average: 12,400 (3 d ago)" in lines
 
 
+def test_popup_labels_an_average_made_from_listings():
+    from dataclasses import replace
+
+    assert "Average: 12,400 (listings)" in format_popup("X", [replace(stats(), avg_from_listings=True)], NOW)
+
+
 def test_popup_without_sell_scan_says_average_is_unknown():
     assert "Average: n/a" in format_popup("X", [stats(avg=None)], NOW)
 

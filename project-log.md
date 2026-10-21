@@ -2,6 +2,11 @@
 
 Newer entries are at the top. Each entry: date, what was done, why. Add a new entry at the end of a session.
 
+## 2026-10-21 (session 7)
+
+- **Average from Buy listings.** The game shows an average (AVG.) only on the Sell tab, for items in the backpack, so items only seen while scrolling the Buy tab showed "Average: n/a". Now, without a Sell scan, the popup and search show the mean of the listings seen in the newest Buy scroll session, marked "(listings)"; listings more than 5x away from their median are left out. The game's own average still wins when it exists.
+- **Release 1.3.1.**
+
 ## 2026-10-21 (session 6)
 
 - **Scanner missed changes.** The owner saw price updates stop now and then. Cause: change detection compared each frame with the previous one using a whole-screen mean on a 64x40 thumbnail. One row appearing (0.57) or prices changing in place (0.49) stayed under the threshold of 1.0, and slow changes (rows loading one by one, the tab bar fading in) slipped through one small step at a time, so the settled list was never read. Now the list area is compared with the last *read* copy (share of changed pixels, threshold 0.002; one row is about 0.007), and it is read only once it has stopped moving. A held-back "misread" price triggers up to two re-reads of the same list, and the guard compares with the median of the last 5 Sell scans so one stored misread no longer blocks correct values.

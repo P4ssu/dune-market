@@ -37,6 +37,16 @@ def test_last_known_average_is_kept_with_its_own_age():
     assert (stats.avg, stats.avg_at) == (8_900, NOW - timedelta(hours=120))
 
 
+def test_without_sell_scan_the_average_comes_from_the_listings_seen():
+    stats = compute_stats(KEY, [buy(1, 100), buy(1, 200), buy(1, 300), buy(1, 9_000_000)], NOW)
+    assert (stats.avg, stats.avg_from_listings) == (200, True)  # the joke price is left out
+
+
+def test_the_games_average_wins_over_the_listings():
+    stats = compute_stats(KEY, [sell(1, 150, 90), buy(1, 100), buy(1, 300)], NOW)
+    assert (stats.avg, stats.avg_from_listings) == (150, False)
+
+
 def test_highest_unknown_without_buy_scan():
     assert compute_stats(KEY, [sell(1, 100, 80)], NOW).highest is None
 

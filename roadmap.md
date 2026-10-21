@@ -14,6 +14,7 @@ Update this file when something gets done or the plan changes. History and reaso
 - Release 1.2.0 published on GitHub and verified; Supabase `releases` row points 1.1.0 copies to the 1.2.0 installer zip.
 - Release 1.2.1: hover popups also work in chests/storage (213 tests pass).
 - Scanner reliability fix (reads one-row and in-place changes, waits for the list to settle, median guard), popup shows lowest + average (last known, with age), tray icon, log file; release 1.3.0.
+- Release 1.3.1: average from Buy tab listings when the item was never on the Sell tab.
 
 ## In progress
 

@@ -15,6 +15,8 @@ def _row(s: ItemStats, now: datetime) -> str:
         arrow, color = ("▲", GREEN) if s.trend_pct > 0 else ("▼", RED)
         lowest += f' <span style="color:{color}">{arrow}{abs(s.trend_pct):g}%</span>'
     avg = "n/a" if s.avg is None else f"{s.avg:,}"
+    if s.avg_from_listings:
+        avg += f'<br><span style="color:{MUTED};font-size:8pt">listings</span>'
     age_color = AMBER if s.stale else MUTED
     old = " (old)" if s.stale else ""
     return (
