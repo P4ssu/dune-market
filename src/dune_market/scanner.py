@@ -41,8 +41,19 @@ SCAN_REGION = (0.03, 0.156, 0.71, 0.867)
 PANEL_TITLE_REGION = (0.70, 0.09, 0.97, 0.19)
 
 
+def buy_tab_on_all_grades(words: list[Word]) -> bool:
+    """True for a Buy tab list filtered on GRADE: ALL (or with an unreadable grade label)."""
+    if classify(words) != Screen.BUY:
+        return False
+    grade, rows = parse_buy(words)
+    return grade == "all" and bool(rows)
+
+
 def observations_from_words(words: list[Word], contributor: str, now: datetime) -> list[Observation]:
-    """Observations from one OCR'd frame; empty unless the Sell or Buy tab is open."""
+    """Observations from one OCR'd frame; empty unless the Sell or Buy tab is open.
+
+    A Buy tab on GRADE: ALL gives nothing: its rows mix grades, so a price cannot be filed under one.
+    """
     screen = classify(words)
     if screen == Screen.SELL:
         return [
@@ -52,7 +63,8 @@ def observations_from_words(words: list[Word], contributor: str, now: datetime) 
         ]
     if screen == Screen.BUY:
         grade, rows = parse_buy(words)
-        grade = "unknown" if grade == "all" else grade
+        if grade == "all":
+            return []
         return [
             Observation(ItemKey(r.name, r.category, grade), "buy", now, contributor,
                         price=r.price, expires_in_s=r.expires_in_s)
@@ -64,8 +76,7 @@ def observations_from_words(words: list[Word], contributor: str, now: datetime) 
 def _describe(obs: Observation) -> str:
     if obs.kind == "sell":
         return "Sell tab"
-    grade = "all grades" if obs.key.grade == "unknown" else f"grade {obs.key.grade}"
-    return f"Buy tab · {obs.key.category} · {grade}"
+    return f"Buy tab · {obs.key.category} · grade {obs.key.grade}"
 
 
 def _within_jump(new: int | None, old: int | None) -> bool:
@@ -120,6 +131,7 @@ class Scanner:
         self.session_total = 0  # distinct items seen in this session
         self.last_label = ""  # what the last scan read, e.g. "Buy tab · GARMENTS - LIGHTARMOR · grade 3"
         self.last_rows = 0
+        self.skipped_all_grades = False  # the last read was a Buy tab on GRADE: ALL, so nothing was saved
 
     def explain(self) -> str:
         """Why the last frame was not taken for the Exchange (for --debug and bug reports)."""
@@ -177,6 +189,7 @@ class Scanner:
             if classify(words) == Screen.SELL:
                 words = words + self._read_panel_title(frame)
             observations = observations_from_words(words, self._contributor, now)
+            self.skipped_all_grades = buy_tab_on_all_grades(words)
             accepted = []
             held = False
             for obs in observations:

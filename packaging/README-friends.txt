@@ -41,8 +41,8 @@ GETTING GOOD PRICES (tips for scanning the Buy tab)
   reliably. (With the default order the listings of one item are spread out and the cheapest can be missed.)
 * Scan between grades: prices differ by grade. Switch the GRADE filter (bottom left of the Buy tab) and
   scroll each grade you care about. That is how the tool learns grade-specific prices, so the popup shows
-  the right price for the exact grade of your item. With GRADE: ALL the prices are saved too, but without a
-  grade; they are only used as a fallback.
+  the right price for the exact grade of your item. With GRADE: ALL nothing is saved (the rows mix
+  grades); a notice in the game reminds you to choose a grade.
 * Scroll steadily; the tool reads the list every second or two and the notice at the top of the screen
   tells you how many new items it found.
 

@@ -5,7 +5,7 @@ import pytest
 from PIL import Image
 
 from dune_market.models import ItemKey, Observation
-from dune_market.scanner import Scanner, accept, observations_from_words, typical_sell
+from dune_market.scanner import Scanner, accept, buy_tab_on_all_grades, observations_from_words, typical_sell
 from dune_market.store_sqlite import SqliteStore
 
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
@@ -29,10 +29,22 @@ def test_sell_screenshot_becomes_sell_observations(shot_words):
     assert (fabric.avg, fabric.low) == (56359, 46000)
 
 
-def test_buy_all_grade_is_unknown(shot_words):
-    observations = observations_from_words(shot_words("buy tab"), "Mari", NOW)
+def with_grade(words, grade):
+    """The Buy tab screenshot as if its grade filter showed `grade` instead of ALL."""
+    return [replace(w, text=f"GRADE:{grade}") if w.text.upper().startswith("GRADE:") else w for w in words]
+
+
+def test_buy_tab_on_all_grades_is_not_saved(shot_words):
+    assert observations_from_words(shot_words("buy tab"), "Mari", NOW) == []
+    assert buy_tab_on_all_grades(shot_words("buy tab")) is True
+
+
+def test_buy_tab_with_one_grade_is_saved_under_that_grade(shot_words):
+    words = with_grade(shot_words("buy tab"), "3")
+    observations = observations_from_words(words, "Mari", NOW)
     assert len(observations) == 5
-    assert all(o.kind == "buy" and o.key.grade == "unknown" and o.price == 10_000_000 for o in observations)
+    assert all(o.kind == "buy" and o.key.grade == "3" and o.price == 10_000_000 for o in observations)
+    assert buy_tab_on_all_grades(words) is False
 
 
 def test_my_orders_yields_nothing(shot_words):
@@ -187,7 +199,18 @@ def test_scanner_describes_what_it_just_read(shot_words, tmp_path):
 def test_scanner_label_for_buy_tab_names_category_and_grade(shot_words, tmp_path):
     big = Image.new("RGB", (2560, 1600), (10, 10, 10))
     scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Mari", exchange_open=lambda f: True, grab=lambda: big,
+                      read=lambda image, offset=(0, 0), scale=1: with_grade(shot_words("buy tab"), "3"))
+    scanner.scan_once(NOW)
+    scanner.scan_once(NOW)
+    assert scanner.last_label == "Buy tab · GARMENTS - LIGHTARMOR · grade 3"
+
+
+def test_scanner_saves_nothing_and_says_so_on_all_grades(shot_words, tmp_path):
+    big = Image.new("RGB", (2560, 1600), (10, 10, 10))
+    store = SqliteStore(str(tmp_path / "p.db"))
+    scanner = Scanner(store, "Mari", exchange_open=lambda f: True, grab=lambda: big,
                       read=lambda image, offset=(0, 0), scale=1: shot_words("buy tab"))
     scanner.scan_once(NOW)
-    scanner.scan_once(NOW)
-    assert scanner.last_label == "Buy tab · GARMENTS - LIGHTARMOR · all grades"
+    assert scanner.scan_once(NOW) == 0
+    assert scanner.skipped_all_grades is True
+    assert store.search("helmet", NOW) == [] and store.unsent(10) == []

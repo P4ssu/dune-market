@@ -51,8 +51,8 @@ def test_scanner_reads_the_buy_tab_on_a_frame_without_black_bars(friend_frame, t
     frame = friend_frame("buy tab")
     scanner = Scanner(SqliteStore(str(tmp_path / "p.db")), "Friend", grab=lambda: frame)
     scanner.scan_once(NOW)
-    assert scanner.scan_once(NOW) >= 4
-    assert scanner.last_label.startswith("Buy tab")
+    assert scanner.scan_once(NOW) == 0  # the screenshot is on GRADE: ALL, so it is read but not saved
+    assert scanner.skipped_all_grades is True
 
 
 def test_hover_popup_works_on_a_frame_without_black_bars(friend_frame, tmp_path):

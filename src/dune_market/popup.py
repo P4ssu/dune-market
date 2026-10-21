@@ -267,6 +267,9 @@ def scan_toast_lines(label: str, rows: int, new: int, total: int) -> list[str]:
     ]
 
 
+ALL_GRADES_TOAST = ["Dune Market · not saved", "Buy tab is on GRADE: ALL", "Choose one grade to save these prices"]
+
+
 def render_toast_html(lines: list[str]) -> str:
     head, *rest = lines
     body = "".join(

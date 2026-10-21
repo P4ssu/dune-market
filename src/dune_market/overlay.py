@@ -23,6 +23,7 @@ from dune_market.banner import find_banner
 from dune_market.capture import cursor_position, game_is_active, grab_frame
 from dune_market.hotkey import HotkeyListener
 from dune_market.popup import (
+    ALL_GRADES_TOAST,
     HoverTracker,
     PopupData,
     hover_popup,
@@ -383,6 +384,7 @@ def run_overlay(
 
         def scan_loop() -> None:
             last_explained = 0.0
+            last_grade_hint = float("-inf")
             while True:
                 try:
                     if debug and game_is_active() and time.monotonic() - last_explained > 10 and time.monotonic() - scanner._exchange_seen_at > 10:
@@ -393,6 +395,10 @@ def run_overlay(
                         signals.toast.emit(
                             scan_toast_lines(scanner.last_label, scanner.last_rows, scanner.last_new, scanner.session_total)
                         )
+                    elif scanner.skipped_all_grades and time.monotonic() - last_grade_hint > 30:
+                        last_grade_hint = time.monotonic()  # say it once, not on every scroll
+                        log.info("Buy tab on GRADE: ALL, nothing saved")
+                        signals.toast.emit(ALL_GRADES_TOAST)
                 except Exception:
                     log.exception("scan loop error")
                 time.sleep(scanner.idle_delay)

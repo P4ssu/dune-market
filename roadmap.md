@@ -17,6 +17,7 @@ Update this file when something gets done or the plan changes. History and reaso
 - Release 1.3.1: average from Buy tab listings when the item was never on the Sell tab.
 - Popup shows last lowest (newest scan session only) and average.
 - Search: `name:N` grade filter, expiry of the cheapest listing.
+- Buy tab on GRADE: ALL is not saved (in-game notice instead).
 
 ## In progress
 
