@@ -48,7 +48,9 @@ def _block(s: ItemStats, now: datetime) -> list[str]:
     lowest = "n/a" if s.lowest is None else f"{s.lowest:,}"
     if s.lowest is not None and s.trend_pct:
         lowest += f" {'▲' if s.trend_pct > 0 else '▼'} {abs(s.trend_pct):g}%"
-    lines.append(f"Lowest: {lowest}")
+    lines.append(f"Last lowest: {lowest}")
+    if s.all_time_low is not None:
+        lines.append(f"All-time lowest: {s.all_time_low:,} ({_age(s.all_time_low_at, now)})")
     average = "n/a" if s.avg is None else f"{s.avg:,}"
     if s.avg is not None and s.avg_at and s.updated_at - s.avg_at > STALE_AFTER:
         average += f" ({_age(s.avg_at, now)})"  # older than the other numbers
@@ -245,7 +247,7 @@ def render_html(lines: list[str]) -> str:
             if match:
                 value, arrow, pct = match.groups()
                 trend = f' <span style="color:{GREEN if arrow == "▲" else RED}">{arrow} {_esc(pct)}</span>'
-            emphasis = GOLD if label == "Lowest" else TEXT
+            emphasis = GOLD if label == "Last lowest" else TEXT
             rows.append(
                 f'<tr><td style="color:{MUTED}">{_esc(label)}</td>'
                 f'<td align="right" style="color:{emphasis};font-weight:600">{_esc(value)}{trend}</td></tr>'

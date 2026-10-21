@@ -2,6 +2,10 @@
 
 Newer entries are at the top. Each entry: date, what was done, why. Add a new entry at the end of a session.
 
+## 2026-10-21 (session 8)
+
+- **Last lowest and all-time lowest.** "Lowest" took the minimum of everything within 24 h of the newest scan (Sell tab LOW plus Buy listings), so an older low price stuck and it looked like an all-time low. Now "Last lowest" uses only the newest scan session (30 min) and a separate "All-time lowest" line shows the cheapest price ever seen with its age (Buy prices far below the median are left out as misreads). Search window columns: last low, all-time low, average.
+
 ## 2026-10-21 (session 7)
 
 - **Average from Buy listings.** The game shows an average (AVG.) only on the Sell tab, for items in the backpack, so items only seen while scrolling the Buy tab showed "Average: n/a". Now, without a Sell scan, the popup and search show the mean of the listings seen in the newest Buy scroll session, marked "(listings)"; listings more than 5x away from their median are left out. The game's own average still wins when it exists.

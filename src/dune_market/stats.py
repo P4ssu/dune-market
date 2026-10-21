@@ -19,10 +19,11 @@ def _ident(key: ItemKey) -> tuple[str, str, str]:
 
 
 def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) -> ItemStats | None:
-    """The last known lowest and highest price of one item key (grade), however old they are.
+    """The last known prices of one item key (grade), however old they are.
 
-    Only values from about the same time as the newest observation count, so a week-old Sell tab
-    low price does not undercut today's Buy tab listings.
+    "Lowest" is the cheapest price of the newest scan session only (the Sell tab LOW and Buy tab rows
+    read within SESSION_WINDOW of the newest observation), so an older low price does not hide today's
+    price; the cheapest price ever seen is kept separately as the all-time low.
     """
     own = sorted((o for o in observations if _ident(o.key) == _ident(key)), key=lambda o: o.observed_at)
     if not own:
@@ -53,11 +54,16 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         ]
 
     shown_sell = newest_sell if recent(newest_sell) and newest_sell.low is not None else None
-    lows = ([shown_sell.low] if shown_sell else []) + session
 
-    # Trend of the Sell tab's low price against a scan at least TREND_MIN_AGE older.
+    def in_last_session(o: Observation | None) -> bool:
+        return o is not None and latest - o.observed_at <= SESSION_WINDOW
+
+    lows = ([shown_sell.low] if in_last_session(shown_sell) else []) + (session if in_last_session(newest_buy) else [])
+
+    # Trend of the Sell tab's low price against a scan at least TREND_MIN_AGE older; only shown when that
+    # low price is part of the last session, so the arrow belongs to the number next to it.
     trend = None
-    if shown_sell and shown_sell.low:
+    if in_last_session(shown_sell) and shown_sell.low:
         older = [
             s for s in sells
             if s.low and s.observed_at <= shown_sell.observed_at - TREND_MIN_AGE and now - s.observed_at <= TREND_MAX_AGE
@@ -72,6 +78,16 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         middle = statistics.median(session)
         usual = [p for p in session if middle / LOW_OUTLIER_FACTOR <= p <= middle * LOW_OUTLIER_FACTOR]
         listing_avg = round(statistics.mean(usual))
+
+    # All-time low over every scan. Without the game's average, Buy prices far below the median of all
+    # listings (likely misreads) are left out.
+    every_listing = [o for o in buys if plausible(o)]
+    if avg is None and every_listing:
+        middle = statistics.median(o.price for o in every_listing)
+        every_listing = [o for o in every_listing if o.price >= middle / LOW_OUTLIER_FACTOR]
+    candidates = [(s.low, s.observed_at) for s in sells if s.low] + [(o.price, o.observed_at) for o in every_listing]
+    # The cheapest price; of equal ones the newest.
+    all_time_low = min(candidates, key=lambda c: (c[0], -c[1].timestamp())) if candidates else None
 
     # The data is as old as the oldest value the popup shows.
     shown = [o for o in (shown_sell, newest_buy if session else None) if o] or [own[-1]]
@@ -88,6 +104,8 @@ def compute_stats(key: ItemKey, observations: list[Observation], now: datetime) 
         avg=avg if avg is not None else listing_avg,
         avg_at=newest_sell.observed_at if newest_sell else None,
         avg_from_listings=listing_avg is not None,
+        all_time_low=all_time_low[0] if all_time_low else None,
+        all_time_low_at=all_time_low[1] if all_time_low else None,
     )
 
 

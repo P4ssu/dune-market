@@ -19,7 +19,7 @@ def test_popup_full_data():
     assert format_popup("Maula Pistol Blueprint", [stats()], NOW) == [
         "Maula Pistol Blueprint",
         "Grade unknown",
-        "Lowest: 9,800 ▲ 8%",
+        "Last lowest: 9,800 ▲ 8%",
         "Average: 12,400",
         "Listings: 14",
         "Updated 2 h ago by Mari",
@@ -27,8 +27,15 @@ def test_popup_full_data():
 
 
 def test_popup_trend_down_and_flat():
-    assert "Lowest: 9,800 ▼ 3%" in format_popup("X", [stats(trend=-3.0)], NOW)
-    assert "Lowest: 9,800" in format_popup("X", [stats(trend=None)], NOW)
+    assert "Last lowest: 9,800 ▼ 3%" in format_popup("X", [stats(trend=-3.0)], NOW)
+    assert "Last lowest: 9,800" in format_popup("X", [stats(trend=None)], NOW)
+
+
+def test_popup_shows_the_all_time_low_with_its_age():
+    from dataclasses import replace
+
+    lines = format_popup("X", [replace(stats(), all_time_low=7_000, all_time_low_at=NOW - timedelta(days=4))], NOW)
+    assert lines[2:4] == ["Last lowest: 9,800 ▲ 8%", "All-time lowest: 7,000 (4 d ago)"]
 
 
 def test_popup_marks_an_average_older_than_the_rest():
@@ -107,7 +114,7 @@ def dust_store(tmp_path):
 def test_hover_popup_shows_stats(shot_words, shot_image, tmp_path):
     popup = hover_popup(shot_image("item hover"), (842, 927), dust_store(tmp_path), NOW, fake_reader(shot_words("item hover")))
     assert popup.lines[0] == "Spice-infused Plastanium Dust"
-    assert "Lowest: 4,000" in popup.lines
+    assert "Last lowest: 4,000" in popup.lines
     assert popup.y < 851  # placed above the tooltip banner, whose top border is at y=851
 
 
@@ -145,7 +152,7 @@ def test_hover_popup_real_ocr_reads_the_full_name(tmp_path):
         pytest.skip("missing screenshot item hover.png")
     popup = hover_popup(Image.open(path).convert("RGB"), (842, 927), dust_store(tmp_path), NOW, read_words)
     assert popup.lines[0] == "Spice-infused Plastanium Dust"
-    assert "Lowest: 4,000" in popup.lines
+    assert "Last lowest: 4,000" in popup.lines
 
 
 def test_hover_popup_ocrs_only_small_crops(shot_words, shot_image, tmp_path):
@@ -207,4 +214,4 @@ def test_hover_popup_for_armor_reads_name_category_and_finds_prices(shot_image, 
                            price=1_200_000, expires_in_s=100)])
     popup = hover_popup(shot_image("armor popup"), (224, 928), store, NOW, read_words)
     assert popup is not None and popup.lines[0] == "Pincushion Helmet"
-    assert "Lowest: 1,200,000" in popup.lines
+    assert "Last lowest: 1,200,000" in popup.lines

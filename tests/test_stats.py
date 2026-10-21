@@ -47,6 +47,23 @@ def test_the_games_average_wins_over_the_listings():
     assert (stats.avg, stats.avg_from_listings) == (150, False)
 
 
+def test_last_lowest_is_from_the_newest_scan_session_only():
+    stats = compute_stats(KEY, [sell(20, 100, 50), buy(0.1, 90), buy(0.1, 95)], NOW)
+    assert stats.lowest == 90  # the Sell low from 20 h ago is not "last" any more
+    assert (stats.all_time_low, stats.all_time_low_at) == (50, NOW - timedelta(hours=20))
+
+
+def test_no_trend_arrow_when_the_last_lowest_is_not_the_sell_low():
+    stats = compute_stats(KEY, [sell(24, 100, 80), sell(2, 150, 88), buy(0.1, 95)], NOW)
+    assert stats.trend_pct is None
+
+
+def test_all_time_low_ignores_misread_listings():
+    stats = compute_stats(KEY, [buy(48, 1_000), buy(48, 1_100), buy(48, 9), buy(1, 1_200)], NOW)
+    assert stats.all_time_low == 1_000
+    assert stats.lowest == 1_200
+
+
 def test_highest_unknown_without_buy_scan():
     assert compute_stats(KEY, [sell(1, 100, 80)], NOW).highest is None
 

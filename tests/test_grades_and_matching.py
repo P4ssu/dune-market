@@ -132,7 +132,7 @@ def test_hover_grade_selects_the_matching_stats_block(shot_words, shot_crop, sho
         Observation(ItemKey(NAME, CAT, "unknown"), "buy", NOW - timedelta(hours=1), "Mari", price=500, expires_in_s=100),
     )
     popup = hover_popup(shot_image("schematic hover"), (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
-    assert "Grade: 1" in popup.lines and "Lowest: 600" in popup.lines
+    assert "Grade: 1" in popup.lines and "Last lowest: 600" in popup.lines
     assert "Grade unknown" not in popup.lines  # the exact grade wins
 
 
@@ -142,7 +142,7 @@ def test_hover_grade_falls_back_to_unknown_grade_stats(shot_words, shot_crop, sh
         Observation(ItemKey(NAME, CAT, "unknown"), "buy", NOW - timedelta(hours=1), "Mari", price=500, expires_in_s=100),
     )
     popup = hover_popup(shot_image("schematic hover"), (531, 620), store, NOW, schematic_reader(shot_words, shot_crop))
-    assert "Grade unknown" in popup.lines and "Lowest: 500" in popup.lines
+    assert "Grade unknown" in popup.lines and "Last lowest: 500" in popup.lines
 
 
 def test_hover_grade_lists_other_grades_when_nothing_else_matches(shot_words, shot_crop, shot_image, tmp_path):
